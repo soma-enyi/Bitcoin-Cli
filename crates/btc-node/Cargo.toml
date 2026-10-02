@@ -1,0 +1,21 @@
+[package]
+name = "btc-node"
+description = "Bitcoin Core connectivity behind the NodeBackend trait, plus RPC config and auth."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+btc-core.workspace = true
+bitcoin.workspace = true
+jsonrpc = "0.20"
+bitreq = { version = "0.3", features = ["https", "json-using-serde"] }
+base64 = "0.22"
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+dotenvy.workspace = true
+directories.workspace = true
+zeroize.workspace = true

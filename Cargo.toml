@@ -1,0 +1,49 @@
+[workspace]
+resolver = "3"
+members = ["crates/btc-core", "crates/btc-node", "crates/btc"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+
+# Shared versions: member crates opt in with `name.workspace = true`.
+[workspace.dependencies]
+# Internal crates
+btc-core = { path = "crates/btc-core" }
+btc-node = { path = "crates/btc-node" }
+
+# Bitcoin
+bitcoin = { version = "0.32", features = ["rand-std", "serde", "base64"] }
+bip39 = { version = "2", features = ["rand", "zeroize"] }
+corepc-client = { version = "0.16", features = ["client-sync"] }
+
+# Errors
+thiserror = "2"
+anyhow = "1"
+
+# Serialization and config
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+dotenvy = "0.15"
+directories = "6"
+
+# Security
+zeroize = { version = "1", features = ["derive", "serde"] }
+
+# CLI and output
+clap = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
+comfy-table = "7"
+owo-colors = "4"
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Testing
+assert_cmd = "2"
+predicates = "3"
+insta = { version = "1", features = ["json"] }

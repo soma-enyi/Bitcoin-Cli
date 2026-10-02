@@ -1,0 +1,17 @@
+[package]
+name = "btc-core"
+description = "Offline Bitcoin logic: keys, mnemonics, derivation, addresses, transactions. No I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bitcoin.workspace = true
+bip39.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

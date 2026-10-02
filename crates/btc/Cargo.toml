@@ -1,0 +1,33 @@
+[package]
+name = "btc"
+description = "A command-line and TUI toolkit for common Bitcoin tasks."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "btc"
+path = "src/main.rs"
+
+[dependencies]
+btc-core.workspace = true
+btc-node.workspace = true
+bitcoin.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+comfy-table.workspace = true
+owo-colors.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
+dotenvy.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+insta.workspace = true
