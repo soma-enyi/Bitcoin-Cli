@@ -42,7 +42,8 @@ pub fn plan(network: &str, get: impl Fn(&str) -> Option<String>) -> Vec<(String,
     let prefix = format!("BTC_{}_", network.to_uppercase());
     let mut actions = Vec::new();
 
-    let specific: Vec<Option<String>> = NAMES.iter().map(|n| get(&format!("{prefix}{n}"))).collect();
+    let specific: Vec<Option<String>> =
+        NAMES.iter().map(|n| get(&format!("{prefix}{n}"))).collect();
     if specific.iter().any(Option::is_some) {
         actions.extend(
             NAMES
@@ -85,11 +86,26 @@ mod tests {
 
     #[test]
     fn flag_beats_environment_and_defaults_to_regtest() {
-        assert_eq!(selected_network(&args(&["btc", "-n", "Mainnet", "node"]), Some("signet".into())), "mainnet");
-        assert_eq!(selected_network(&args(&["btc", "--network=signet"]), None), "signet");
-        assert_eq!(selected_network(&args(&["btc", "node"]), Some("mainnet".into())), "mainnet");
+        assert_eq!(
+            selected_network(
+                &args(&["btc", "-n", "Mainnet", "node"]),
+                Some("signet".into())
+            ),
+            "mainnet"
+        );
+        assert_eq!(
+            selected_network(&args(&["btc", "--network=signet"]), None),
+            "signet"
+        );
+        assert_eq!(
+            selected_network(&args(&["btc", "node"]), Some("mainnet".into())),
+            "mainnet"
+        );
         assert_eq!(selected_network(&args(&["btc", "node"]), None), "regtest");
-        assert_eq!(selected_network(&args(&["btc", "node"]), Some("  ".into())), "regtest");
+        assert_eq!(
+            selected_network(&args(&["btc", "node"]), Some("  ".into())),
+            "regtest"
+        );
     }
 
     #[test]
@@ -104,10 +120,16 @@ mod tests {
         let main: HashMap<_, _> = plan("mainnet", get).into_iter().collect();
         assert_eq!(main["BTC_RPC_URL"].as_deref(), Some("https://gw"));
         assert_eq!(main["BTC_RPC_API_KEY"].as_deref(), Some("k"));
-        assert_eq!(main["BTC_RPC_COOKIE"], None, "generic cookie must be cleared");
+        assert_eq!(
+            main["BTC_RPC_COOKIE"], None,
+            "generic cookie must be cleared"
+        );
         let reg: HashMap<_, _> = plan("regtest", get).into_iter().collect();
         assert_eq!(reg["BTC_RPC_URL"].as_deref(), Some("http://local"));
-        assert_eq!(reg["BTC_RPC_API_KEY"], None, "mainnet key must not reach regtest");
+        assert_eq!(
+            reg["BTC_RPC_API_KEY"], None,
+            "mainnet key must not reach regtest"
+        );
     }
 
     #[test]
@@ -120,7 +142,10 @@ mod tests {
         let get = |k: &str| env.get(k).map(|v| v.to_string());
         let actions: HashMap<_, _> = plan("mainnet", get).into_iter().collect();
         assert_eq!(actions["BTC_FEE_SOURCE"].as_deref(), Some("public"));
-        assert!(!actions.contains_key("BTC_RPC_URL"), "node settings untouched");
+        assert!(
+            !actions.contains_key("BTC_RPC_URL"),
+            "node settings untouched"
+        );
         assert!(!actions.contains_key("BTC_FEE_API_URL"));
     }
 

@@ -121,7 +121,10 @@ pub fn derive(
         let (have, want) = if key_is_mainnet {
             ("a mainnet key (xprv/xpub)", "pass --network mainnet")
         } else {
-            ("a test-network key (tprv/tpub)", "use a test network, or an xprv/xpub for mainnet")
+            (
+                "a test-network key (tprv/tpub)",
+                "use a test network, or an xprv/xpub for mainnet",
+            )
         };
         return Err(CoreError::InvalidInput(format!(
             "this is {have} but the network is {network}: {want}"
@@ -510,7 +513,10 @@ mod tests {
         let cases = [
             ("m/44'/0'/0'/0/0", "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"),
             ("m/49'/0'/0'/0/0", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"),
-            ("m/84'/0'/0'/0/0", "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"),
+            (
+                "m/84'/0'/0'/0/0",
+                "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+            ),
             (
                 "m/86'/0'/0'/0/0",
                 "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
@@ -526,7 +532,11 @@ mod tests {
     fn mainnet_private_keys_use_the_mainnet_wif_prefix() {
         let child = derive_one(&mainnet_root(), "m/84'/0'/0'/0/0", Network::Mainnet);
         let wif = child.private_key_wif.expect("an xprv gives a WIF");
-        assert!(wif.starts_with('K') || wif.starts_with('L'), "{}", wif.as_str());
+        assert!(
+            wif.starts_with('K') || wif.starts_with('L'),
+            "{}",
+            wif.as_str()
+        );
     }
 
     #[test]
@@ -536,7 +546,10 @@ mod tests {
             .err()
             .unwrap()
             .to_string();
-        assert!(err.contains("mainnet key") && err.contains("--network mainnet"), "{err}");
+        assert!(
+            err.contains("mainnet key") && err.contains("--network mainnet"),
+            "{err}"
+        );
 
         let err = derive(&abandon_root(), &path, 1, None, Network::Mainnet)
             .err()
@@ -549,9 +562,20 @@ mod tests {
     fn coin_type_warning_follows_the_network() {
         let root = mainnet_root();
         let path = parse_path("m/84'/0'/0'/0/0").unwrap();
-        assert!(derive(&root, &path, 1, None, Network::Mainnet).unwrap().warnings.is_empty());
+        assert!(
+            derive(&root, &path, 1, None, Network::Mainnet)
+                .unwrap()
+                .warnings
+                .is_empty()
+        );
         let path = parse_path("m/84'/1'/0'/0/0").unwrap();
-        assert_eq!(derive(&root, &path, 1, None, Network::Mainnet).unwrap().warnings.len(), 1);
+        assert_eq!(
+            derive(&root, &path, 1, None, Network::Mainnet)
+                .unwrap()
+                .warnings
+                .len(),
+            1
+        );
     }
 
     #[test]

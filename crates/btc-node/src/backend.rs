@@ -1,4 +1,3 @@
-
 use crate::error::NodeError;
 use std::fmt;
 
@@ -69,24 +68,33 @@ pub trait NodeBackend: Send + Sync {
     /// The lowest fee rate (sat/vB) the node's mempool accepts. A floor, not a confirmation estimate;
     /// used when the node cannot estimate fees.
     fn mempool_floor_sat_vb(&self) -> Result<f64> {
-        Err(NodeError::Rpc("this backend cannot report the mempool minimum fee".into()))
+        Err(NodeError::Rpc(
+            "this backend cannot report the mempool minimum fee".into(),
+        ))
     }
 
     /// The raw hex of a transaction. Without a transaction index the node only knows unconfirmed
     /// transactions, unless `block` (a height or block hash) says where to look.
     fn raw_transaction(&self, _txid: &str, _block: Option<&str>) -> Result<String> {
-        Err(NodeError::Rpc("this backend cannot fetch transactions".into()))
+        Err(NodeError::Rpc(
+            "this backend cannot fetch transactions".into(),
+        ))
     }
 
     /// Like `raw_transaction`, plus the spent amounts when the node provides them.
     fn transaction(&self, txid: &str, block: Option<&str>) -> Result<FetchedTx> {
-        Ok(FetchedTx { hex: self.raw_transaction(txid, block)?, prevouts: None })
+        Ok(FetchedTx {
+            hex: self.raw_transaction(txid, block)?,
+            prevouts: None,
+        })
     }
 
     /// `(sat/vB, vsize)` for every non-coinbase transaction in the last `blocks` blocks, for
     /// estimating fees when the node's own estimator is unavailable.
     fn recent_fee_rates(&self, _blocks: usize) -> Result<Vec<(f64, u64)>> {
-        Err(NodeError::Rpc("this backend cannot read recent blocks".into()))
+        Err(NodeError::Rpc(
+            "this backend cannot read recent blocks".into(),
+        ))
     }
 
     /// Submits a signed transaction (hex) and returns its txid.
@@ -200,17 +208,17 @@ impl CoreRpcBackend {
     }
 
     fn client(&self) -> Result<Client> {
-        let basic = |user: &str, pass: &str| {
-            format!("Basic {}", BASE64.encode(format!("{user}:{pass}")))
-        };
+        let basic =
+            |user: &str, pass: &str| format!("Basic {}", BASE64.encode(format!("{user}:{pass}")));
         let headers = match &self.auth {
             Credentials::Cookie(path) => {
-                let line = std::fs::read_to_string(path)
-                    .map_err(|e| self.unreachable(format!(
+                let line = std::fs::read_to_string(path).map_err(|e| {
+                    self.unreachable(format!(
                         "cannot read cookie file {} ({e}) - is bitcoind running on this network? \
                          Set BTC_RPC_COOKIE, BTC_RPC_USER and BTC_RPC_PASSWORD, or BTC_RPC_API_KEY",
                         path.display()
-                    )))?;
+                    ))
+                })?;
                 let line = line.lines().next().unwrap_or("");
                 let (user, pass) = line.split_once(':').ok_or_else(|| {
                     NodeError::Rpc(format!("cookie file {} is malformed", path.display()))
@@ -255,7 +263,9 @@ impl CoreRpcBackend {
                      For fees, pass --fallback-rate <sat/vB>"
                 )),
                 Some(http) => NodeError::Rpc(format!("{method}: {http}")),
-                None => self.unreachable(format!("{inner} - is the node running? Check BTC_RPC_URL")),
+                None => {
+                    self.unreachable(format!("{inner} - is the node running? Check BTC_RPC_URL"))
+                }
             },
             other => NodeError::Rpc(format!("{method}: {other}")),
         }
@@ -325,7 +335,10 @@ impl NodeBackend for CoreRpcBackend {
         let tip: u64 = self.call("getblockcount", &[])?;
         if let Ok(guard) = self.fee_cache.lock() {
             if let Some(cache) = guard.as_ref() {
-                if cache.blocks == blocks && cache.tip == tip && cache.taken.elapsed() < FEE_CACHE_TTL {
+                if cache.blocks == blocks
+                    && cache.tip == tip
+                    && cache.taken.elapsed() < FEE_CACHE_TTL
+                {
                     return Ok(cache.samples.clone());
                 }
             }
@@ -340,7 +353,9 @@ impl NodeBackend for CoreRpcBackend {
                 Err(NodeError::Unreachable { .. }) => self.call("getblock", &args)?,
                 other => other?,
             };
-            let Some(txs) = block["tx"].as_array() else { continue };
+            let Some(txs) = block["tx"].as_array() else {
+                continue;
+            };
             // The first transaction is the coinbase: it has no fee.
             for tx in txs.iter().skip(1) {
                 if let (Some(fee), Some(vsize)) = (tx["fee"].as_f64(), tx["vsize"].as_u64()) {
@@ -351,7 +366,12 @@ impl NodeBackend for CoreRpcBackend {
             }
         }
         if let Ok(mut guard) = self.fee_cache.lock() {
-            *guard = Some(FeeCache { taken: std::time::Instant::now(), tip, blocks, samples: samples.clone() });
+            *guard = Some(FeeCache {
+                taken: std::time::Instant::now(),
+                tip,
+                blocks,
+                samples: samples.clone(),
+            });
         }
         Ok(samples)
     }
@@ -361,7 +381,9 @@ impl NodeBackend for CoreRpcBackend {
         let per_kvb = |key: &str| info[key].as_f64().unwrap_or(0.0);
         let floor = per_kvb("mempoolminfee").max(per_kvb("minrelaytxfee"));
         if floor <= 0.0 {
-            return Err(NodeError::Rpc("node reported no mempool minimum fee".into()));
+            return Err(NodeError::Rpc(
+                "node reported no mempool minimum fee".into(),
+            ));
         }
         Ok(floor * 100_000.0) // BTC/kvB -> sat/vB
     }

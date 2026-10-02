@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use serde::Serialize;
 use crate::output::Render;
+use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -229,7 +229,9 @@ impl AppState {
         if tab == self.current_tab {
             &mut self.tab_state
         } else {
-            self.saved.entry(tab).or_insert_with(|| fresh_state(&self.derive_path, tab))
+            self.saved
+                .entry(tab)
+                .or_insert_with(|| fresh_state(&self.derive_path, tab))
         }
     }
 
@@ -246,13 +248,21 @@ impl AppState {
     pub fn apply_handoff(&mut self, handoff: Handoff) {
         match handoff {
             Handoff::Xprv(key) => {
-                if let TabState::Derive { xprv_input, state, .. } = self.state_of(Tab::Derive) {
+                if let TabState::Derive {
+                    xprv_input, state, ..
+                } = self.state_of(Tab::Derive)
+                {
                     *xprv_input = key;
                     *state = OperationState::Idle;
                 }
             }
             Handoff::Pubkey(key) => {
-                if let TabState::Addresses { pubkey_input, state, .. } = self.state_of(Tab::Addresses) {
+                if let TabState::Addresses {
+                    pubkey_input,
+                    state,
+                    ..
+                } = self.state_of(Tab::Addresses)
+                {
                     *pubkey_input = key;
                     *state = OperationState::Idle;
                 }
@@ -276,13 +286,19 @@ impl AppState {
 
     pub fn next_tab(&mut self) {
         let tabs = Tab::all();
-        let idx = tabs.iter().position(|t| t == &self.current_tab).unwrap_or(0);
+        let idx = tabs
+            .iter()
+            .position(|t| t == &self.current_tab)
+            .unwrap_or(0);
         self.switch_to(tabs[(idx + 1) % tabs.len()]);
     }
 
     pub fn prev_tab(&mut self) {
         let tabs = Tab::all();
-        let idx = tabs.iter().position(|t| t == &self.current_tab).unwrap_or(0);
+        let idx = tabs
+            .iter()
+            .position(|t| t == &self.current_tab)
+            .unwrap_or(0);
         self.switch_to(tabs[if idx == 0 { tabs.len() - 1 } else { idx - 1 }]);
     }
 }

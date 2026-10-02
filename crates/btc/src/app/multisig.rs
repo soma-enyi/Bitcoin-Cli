@@ -29,7 +29,10 @@ pub struct MultisigAnalysis {
 
 impl Render for MultisigAnalysis {
     fn render_human(&self) -> String {
-        let mut out = format!("{}-of-{} multisig script\n", self.threshold, self.total_keys);
+        let mut out = format!(
+            "{}-of-{} multisig script\n",
+            self.threshold, self.total_keys
+        );
         for (i, key) in self.pubkeys.iter().enumerate() {
             out.push_str(&format!("key {}  {key}\n", i + 1));
         }
@@ -43,7 +46,12 @@ pub fn create(
     pubkeys: &[String],
     keep_order: bool,
 ) -> Result<MultisigInfo, AppError> {
-    Ok(multisig::create(threshold, pubkeys, ctx.network, keep_order)?)
+    Ok(multisig::create(
+        threshold,
+        pubkeys,
+        ctx.network,
+        keep_order,
+    )?)
 }
 
 pub fn analyze(_ctx: &Context, script: &str) -> Result<MultisigAnalysis, AppError> {

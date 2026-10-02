@@ -1,16 +1,16 @@
-use bitcoin::amount::Amount;
-use bitcoin::blockdata::script::ScriptBuf;
-use bitcoin::psbt::Psbt;
 use bitcoin::Address;
+use bitcoin::OutPoint;
+use bitcoin::Sequence;
 use bitcoin::Transaction;
 use bitcoin::TxIn;
 use bitcoin::TxOut;
-use bitcoin::OutPoint;
-use bitcoin::Sequence;
 use bitcoin::Txid;
+use bitcoin::amount::Amount;
+use bitcoin::blockdata::script::ScriptBuf;
+use bitcoin::psbt::Psbt;
 
-use crate::error::CoreError;
 use crate::Network;
+use crate::error::CoreError;
 
 #[derive(Clone, Debug)]
 pub struct TxInput {
@@ -31,18 +31,20 @@ impl TxInput {
             ));
         }
 
-        let txid = parts[0].parse().map_err(|_| {
-            CoreError::InvalidInput(format!("invalid txid: {}", parts[0]))
-        })?;
+        let txid = parts[0]
+            .parse()
+            .map_err(|_| CoreError::InvalidInput(format!("invalid txid: {}", parts[0])))?;
 
-        let vout = parts[1].parse().map_err(|_| {
-            CoreError::InvalidInput(format!("invalid vout: {}", parts[1]))
-        })?;
+        let vout = parts[1]
+            .parse()
+            .map_err(|_| CoreError::InvalidInput(format!("invalid vout: {}", parts[1])))?;
 
         let amount_sats = match parts.get(2) {
-            Some(amount) => Some(amount.parse().map_err(|_| {
-                CoreError::InvalidInput(format!("invalid amount: {amount}"))
-            })?),
+            Some(amount) => Some(
+                amount
+                    .parse()
+                    .map_err(|_| CoreError::InvalidInput(format!("invalid amount: {amount}")))?,
+            ),
             None => None,
         };
 
@@ -92,9 +94,9 @@ impl TxOutput {
 
         let address = parse_address(parts[0], network)?;
 
-        let amount_sats = parts[1].parse().map_err(|_| {
-            CoreError::InvalidInput(format!("invalid amount: {}", parts[1]))
-        })?;
+        let amount_sats = parts[1]
+            .parse()
+            .map_err(|_| CoreError::InvalidInput(format!("invalid amount: {}", parts[1])))?;
 
         Ok(TxOutput {
             address,
@@ -112,9 +114,7 @@ pub fn parse_address(s: &str, network: Network) -> Result<Address, CoreError> {
         .map_err(|e| CoreError::InvalidAddress(format!("invalid address: {e}")))?;
     unchecked
         .require_network(bitcoin::Network::from(network))
-        .map_err(|_| {
-            CoreError::InvalidAddress(format!("{s} is not a valid {network} address"))
-        })
+        .map_err(|_| CoreError::InvalidAddress(format!("{s} is not a valid {network} address")))
 }
 
 pub fn create_psbt(
@@ -124,16 +124,17 @@ pub fn create_psbt(
     fee_rate: f64,
 ) -> Result<Psbt, CoreError> {
     if inputs.is_empty() {
-        return Err(CoreError::InvalidInput("at least one input required".into()));
+        return Err(CoreError::InvalidInput(
+            "at least one input required".into(),
+        ));
     }
     if outputs.is_empty() {
-        return Err(CoreError::InvalidInput("at least one output required".into()));
+        return Err(CoreError::InvalidInput(
+            "at least one output required".into(),
+        ));
     }
 
-    let total_input_sats: u64 = inputs
-        .iter()
-        .filter_map(|i| i.amount_sats)
-        .sum();
+    let total_input_sats: u64 = inputs.iter().filter_map(|i| i.amount_sats).sum();
 
     let total_output_sats: u64 = outputs.iter().map(|o| o.amount_sats).sum();
 
@@ -239,7 +240,10 @@ mod tests {
     fn addresses_must_belong_to_the_selected_network() {
         let main = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
         assert!(parse_address(main, Network::Mainnet).is_ok());
-        let err = parse_address(main, Network::Regtest).err().unwrap().to_string();
+        let err = parse_address(main, Network::Regtest)
+            .err()
+            .unwrap()
+            .to_string();
         assert!(err.contains("not a valid regtest address"), "{err}");
         assert!(TxOutput::parse(&format!("{main}:1000"), Network::Signet).is_err());
         assert!(TxOutput::parse(&format!("{main}:1000"), Network::Mainnet).is_ok());

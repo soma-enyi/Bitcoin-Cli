@@ -134,7 +134,11 @@ impl Render for Derivation {
         let input = format!(
             "{} (depth {}, fingerprint {})",
             if self.input_kind == "private" {
-                if self.network.is_mainnet() { "xprv" } else { "tprv" }
+                if self.network.is_mainnet() {
+                    "xprv"
+                } else {
+                    "tprv"
+                }
             } else if self.network.is_mainnet() {
                 "xpub"
             } else {

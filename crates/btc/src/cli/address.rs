@@ -9,7 +9,9 @@ pub enum AddressCmd {
         addr_type: AddressTypeArg,
     },
 
-    Validate { address: String },
+    Validate {
+        address: String,
+    },
 }
 
 #[derive(Clone, Copy, ValueEnum)]

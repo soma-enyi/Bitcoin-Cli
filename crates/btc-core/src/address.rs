@@ -509,13 +509,24 @@ mod tests {
 
     #[test]
     fn mainnet_addresses_validate_on_mainnet_only() {
-        let report = validate("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", Network::Mainnet).unwrap();
+        let report = validate(
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+            Network::Mainnet,
+        )
+        .unwrap();
         assert_eq!(report.valid_networks, ["mainnet"]);
-        let err = validate("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", Network::Signet)
-            .err()
-            .unwrap();
+        let err = validate(
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+            Network::Signet,
+        )
+        .err()
+        .unwrap();
         assert!(matches!(err, CoreError::WrongNetwork { .. }));
-        let err = validate("bcrt1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", Network::Mainnet).err();
+        let err = validate(
+            "bcrt1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+            Network::Mainnet,
+        )
+        .err();
         assert!(err.is_some());
     }
 

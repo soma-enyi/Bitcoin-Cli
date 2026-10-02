@@ -35,16 +35,25 @@ impl Render for PsbtInfo {
     fn render_human(&self) -> String {
         let mut out = format!("txid     {}\nversion  {}\n\n", self.txid, self.version);
         for (i, input) in self.inputs.iter().enumerate() {
-            let amount = input.amount_sat.map_or("unknown".to_owned(), |a| format!("{a} sat"));
+            let amount = input
+                .amount_sat
+                .map_or("unknown".to_owned(), |a| format!("{a} sat"));
             out.push_str(&format!(
                 "input {i}   {}  {amount}  sigs: {}  {}\n",
                 input.outpoint,
                 input.partial_signatures,
-                if input.finalized { "finalized" } else { "not finalized" }
+                if input.finalized {
+                    "finalized"
+                } else {
+                    "not finalized"
+                }
             ));
         }
         for (i, output) in self.outputs.iter().enumerate() {
-            out.push_str(&format!("output {i}  {} sat  {}\n", output.amount_sat, output.script_hex));
+            out.push_str(&format!(
+                "output {i}  {} sat  {}\n",
+                output.amount_sat, output.script_hex
+            ));
         }
         match self.fee_sat {
             Some(fee) => out.push_str(&format!("\nfee      {fee} sat")),
@@ -131,7 +140,9 @@ pub fn combine(_ctx: &Context, psbts: &[String]) -> Result<PsbtCombined, AppErro
     for other in iter {
         let other = parse(&text_arg(other)?)?;
         base.combine(other).map_err(|e| {
-            AppError::Input(format!("cannot combine: {e} (the PSBTs must be for the same transaction)"))
+            AppError::Input(format!(
+                "cannot combine: {e} (the PSBTs must be for the same transaction)"
+            ))
         })?;
     }
     Ok(PsbtCombined {

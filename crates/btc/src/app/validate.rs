@@ -44,7 +44,9 @@ pub fn transaction_hex(hex: &str) -> Result<(), AppError> {
     }
 
     if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(AppError::Input("transaction hex must contain only 0-9, a-f".into()));
+        return Err(AppError::Input(
+            "transaction hex must contain only 0-9, a-f".into(),
+        ));
     }
 
     if hex.len() < 20 {
@@ -83,7 +85,9 @@ pub fn block_hash(hash: &str) -> Result<(), AppError> {
     }
 
     if !hash.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(AppError::Input("block hash must be valid hex (0-9, a-f)".into()));
+        return Err(AppError::Input(
+            "block hash must be valid hex (0-9, a-f)".into(),
+        ));
     }
 
     Ok(())

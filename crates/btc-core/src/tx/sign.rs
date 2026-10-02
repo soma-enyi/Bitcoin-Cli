@@ -5,7 +5,7 @@ use bitcoin::key::{Keypair, TapTweak};
 use bitcoin::psbt::Psbt;
 use bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 use bitcoin::sighash::{EcdsaSighashType, Prevouts, SighashCache, TapSighashType};
-use bitcoin::{ecdsa, taproot, CompressedPublicKey, ScriptBuf, Transaction, TxOut, Witness};
+use bitcoin::{CompressedPublicKey, ScriptBuf, Transaction, TxOut, Witness, ecdsa, taproot};
 
 use crate::error::CoreError;
 
@@ -51,7 +51,12 @@ pub fn sign_psbt(psbt: &mut Psbt, secret: &SecretKey) -> Result<usize, CoreError
         }
         let witness = if utxo.script_pubkey == p2wpkh {
             let hash = cache
-                .p2wpkh_signature_hash(index, &utxo.script_pubkey, utxo.value, EcdsaSighashType::All)
+                .p2wpkh_signature_hash(
+                    index,
+                    &utxo.script_pubkey,
+                    utxo.value,
+                    EcdsaSighashType::All,
+                )
                 .map_err(|e| invalid(format!("input {index}: {e}")))?;
             let signature = ecdsa::Signature {
                 signature: secp.sign_ecdsa(&Message::from_digest(hash.to_byte_array()), secret),
@@ -67,8 +72,10 @@ pub fn sign_psbt(psbt: &mut Psbt, secret: &SecretKey) -> Result<usize, CoreError
                 )
                 .map_err(|e| invalid(format!("input {index}: {e}")))?;
             let signature = taproot::Signature {
-                signature: secp
-                    .sign_schnorr(&Message::from_digest(hash.to_byte_array()), &tweaked.to_keypair()),
+                signature: secp.sign_schnorr(
+                    &Message::from_digest(hash.to_byte_array()),
+                    &tweaked.to_keypair(),
+                ),
                 sighash_type: TapSighashType::Default,
             };
             Witness::p2tr_key_spend(&signature)
@@ -124,7 +131,10 @@ mod tests {
             version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: vec![TxIn {
-                previous_output: OutPoint { txid: Txid::from_byte_array([7; 32]), vout: 1 },
+                previous_output: OutPoint {
+                    txid: Txid::from_byte_array([7; 32]),
+                    vout: 1,
+                },
                 script_sig: ScriptBuf::new(),
                 sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
                 witness: Witness::new(),
@@ -135,7 +145,10 @@ mod tests {
             }],
         };
         let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
-        psbt.inputs[0].witness_utxo = Some(TxOut { value: Amount::from_sat(amount), script_pubkey: script });
+        psbt.inputs[0].witness_utxo = Some(TxOut {
+            value: Amount::from_sat(amount),
+            script_pubkey: script,
+        });
         psbt
     }
 
@@ -157,7 +170,8 @@ mod tests {
         assert_eq!(witness.len(), 2);
         let (sig_bytes, pubkey) = (witness[0], witness[1]);
         assert_eq!(*sig_bytes.last().unwrap(), 0x01, "SIGHASH_ALL");
-        let sig = bitcoin::secp256k1::ecdsa::Signature::from_der(&sig_bytes[..sig_bytes.len() - 1]).unwrap();
+        let sig = bitcoin::secp256k1::ecdsa::Signature::from_der(&sig_bytes[..sig_bytes.len() - 1])
+            .unwrap();
 
         let hash = SighashCache::new(&tx)
             .p2wpkh_signature_hash(0, &script, Amount::from_sat(100_000), EcdsaSighashType::All)
@@ -174,21 +188,35 @@ mod tests {
         let keypair = Keypair::from_secret_key(&secp, &key);
         let (output_key, _) = keypair.x_only_public_key().0.tap_tweak(&secp, None);
         let script = ScriptBuf::new_p2tr_tweaked(output_key);
-        let prevout = TxOut { value: Amount::from_sat(100_000), script_pubkey: script.clone() };
+        let prevout = TxOut {
+            value: Amount::from_sat(100_000),
+            script_pubkey: script.clone(),
+        };
         let mut psbt = psbt_spending(script, 100_000);
         sign_psbt(&mut psbt, &key).unwrap();
         let tx = extract_signed(psbt).unwrap();
 
         let witness: Vec<&[u8]> = tx.input[0].witness.iter().collect();
         assert_eq!(witness.len(), 1);
-        assert_eq!(witness[0].len(), 64, "SIGHASH_DEFAULT signatures have no suffix byte");
+        assert_eq!(
+            witness[0].len(),
+            64,
+            "SIGHASH_DEFAULT signatures have no suffix byte"
+        );
         let sig = bitcoin::secp256k1::schnorr::Signature::from_slice(witness[0]).unwrap();
 
         let hash = SighashCache::new(&tx)
-            .taproot_key_spend_signature_hash(0, &Prevouts::All(&[prevout]), TapSighashType::Default)
+            .taproot_key_spend_signature_hash(
+                0,
+                &Prevouts::All(&[prevout]),
+                TapSighashType::Default,
+            )
             .unwrap();
         let msg = Message::from_digest(hash.to_byte_array());
-        assert!(secp.verify_schnorr(&sig, &msg, &output_key.to_x_only_public_key()).is_ok());
+        assert!(
+            secp.verify_schnorr(&sig, &msg, &output_key.to_x_only_public_key())
+                .is_ok()
+        );
     }
 
     #[test]

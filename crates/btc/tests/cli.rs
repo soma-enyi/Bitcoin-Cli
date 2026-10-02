@@ -86,13 +86,6 @@ fn json_errors_are_printed_to_stdout() {
     assert_eq!(v["error"]["kind"], "invalid_input");
 }
 
-
-
-
-
-
-
-
 #[test]
 fn usage_errors_exit_with_code_1_not_clap_default_2() {
     btc().args(["tx", "sign", "cHNidP8="]).assert().code(1);
@@ -421,7 +414,6 @@ fn tx_decode_of_a_txid_asks_the_node_and_reports_when_it_is_unreachable() {
     assert_eq!(stdout_json(&mut cmd)["error"]["kind"], "node");
 }
 
-
 const K1: &str = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
 const K2: &str = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd";
 const K3: &str = "025cbdf0646e5db4eaa398f365f2ea7a0e3d419b7e0330e39ce92bddedcac4f9bc";
@@ -512,7 +504,16 @@ fn real_environment_beats_dotenv() {
 fn multisig_create_matches_bitcoin_core_addresses() {
     // Verified against `bitcoin-cli createmultisig 2 [K1,K2,K3]` on regtest (keys in given order).
     let v = stdout_json(btc().args([
-        "--json", "multisig", "create", "--threshold", "2", "--keep-order", "--pubkey", K1, K2, K3,
+        "--json",
+        "multisig",
+        "create",
+        "--threshold",
+        "2",
+        "--keep-order",
+        "--pubkey",
+        K1,
+        K2,
+        K3,
     ]));
     assert_eq!(v["p2sh"], "2MxQa1EbxeEcn365ze92PyDeaYRQTfg1K9m");
     assert_eq!(
@@ -530,7 +531,14 @@ fn multisig_create_rejects_bad_threshold_and_keys() {
         .code(1)
         .stderr(predicate::str::contains("threshold must be between 1"));
     btc()
-        .args(["multisig", "create", "--threshold", "1", "--pubkey", "nothex"])
+        .args([
+            "multisig",
+            "create",
+            "--threshold",
+            "1",
+            "--pubkey",
+            "nothex",
+        ])
         .assert()
         .code(1)
         .stderr(predicate::str::contains("bad public key"));
@@ -539,7 +547,15 @@ fn multisig_create_rejects_bad_threshold_and_keys() {
 #[test]
 fn multisig_analyze_round_trips_a_created_script() {
     let created = stdout_json(btc().args([
-        "--json", "multisig", "create", "--threshold", "2", "--pubkey", K1, K2, K3,
+        "--json",
+        "multisig",
+        "create",
+        "--threshold",
+        "2",
+        "--pubkey",
+        K1,
+        K2,
+        K3,
     ]));
     let script = created["script_hex"].as_str().unwrap().to_owned();
     let v = stdout_json(btc().args(["--json", "multisig", "analyze", &script]));
@@ -558,7 +574,10 @@ fn psbt_analyze_rejects_garbage() {
 
 #[test]
 fn psbt_combine_needs_two_psbts() {
-    btc().args(["psbt", "combine", "cHNidP8="]).assert().failure();
+    btc()
+        .args(["psbt", "combine", "cHNidP8="])
+        .assert()
+        .failure();
 }
 
 #[test]
@@ -568,7 +587,9 @@ fn api_key_requires_a_url() {
         .env("BTC_RPC_API_KEY", "k")
         .assert()
         .code(1)
-        .stderr(predicate::str::contains("BTC_RPC_API_KEY needs BTC_RPC_URL"));
+        .stderr(predicate::str::contains(
+            "BTC_RPC_API_KEY needs BTC_RPC_URL",
+        ));
 }
 
 #[test]
@@ -686,7 +707,8 @@ fn mainnet_defaults_to_the_mainnet_rpc_port() {
     assert_eq!(v["rpc_url"], "http://127.0.0.1:8332");
 }
 
-const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const ABANDON: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 const ABANDON_MAINNET_XPRV: &str = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu";
 
 #[test]
@@ -700,10 +722,18 @@ fn mainnet_derive_matches_the_bip_vectors() {
     for (path, expected) in [
         ("m/44'/0'/0'/0/0", "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"),
         ("m/49'/0'/0'/0/0", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"),
-        ("m/84'/0'/0'/0/0", "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"),
+        (
+            "m/84'/0'/0'/0/0",
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+        ),
     ] {
         let v = stdout_json(btc().args([
-            "--json", "-n", "mainnet", "derive", ABANDON_MAINNET_XPRV, path,
+            "--json",
+            "-n",
+            "mainnet",
+            "derive",
+            ABANDON_MAINNET_XPRV,
+            path,
         ]));
         assert_eq!(v["children"][0]["address"], expected, "{path}");
     }
@@ -712,7 +742,13 @@ fn mainnet_derive_matches_the_bip_vectors() {
 #[test]
 fn a_mainnet_key_is_refused_on_regtest() {
     btc()
-        .args(["-n", "regtest", "derive", ABANDON_MAINNET_XPRV, "m/84'/0'/0'/0/0"])
+        .args([
+            "-n",
+            "regtest",
+            "derive",
+            ABANDON_MAINNET_XPRV,
+            "m/84'/0'/0'/0/0",
+        ])
         .assert()
         .code(1)
         .stderr(predicate::str::contains("mainnet key"))
@@ -721,7 +757,10 @@ fn a_mainnet_key_is_refused_on_regtest() {
 
 #[test]
 fn mainnet_key_generation_warns_loudly_on_stderr() {
-    let output = btc().args(["-n", "mainnet", "key", "generate"]).output().unwrap();
+    let output = btc()
+        .args(["-n", "mainnet", "key", "generate"])
+        .output()
+        .unwrap();
     assert!(output.status.success());
     let out = String::from_utf8(output.stdout).unwrap();
     assert!(out.contains("mainnet"));
@@ -737,22 +776,44 @@ fn mainnet_key_generation_warns_loudly_on_stderr() {
 
 #[test]
 fn test_network_keys_keep_the_regular_warning() {
-    let output = btc().args(["-n", "regtest", "key", "generate"]).output().unwrap();
+    let output = btc()
+        .args(["-n", "regtest", "key", "generate"])
+        .output()
+        .unwrap();
     let err = String::from_utf8(output.stderr).unwrap();
-    assert!(err.contains("secret key material") && !err.contains("MAINNET"), "{err}");
+    assert!(
+        err.contains("secret key material") && !err.contains("MAINNET"),
+        "{err}"
+    );
 }
 
 #[test]
 fn mainnet_address_validation_is_network_specific() {
     let addr = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
-    btc().args(["-n", "mainnet", "address", "validate", addr]).assert().success();
-    btc().args(["-n", "regtest", "address", "validate", addr]).assert().code(1);
+    btc()
+        .args(["-n", "mainnet", "address", "validate", addr])
+        .assert()
+        .success();
+    btc()
+        .args(["-n", "regtest", "address", "validate", addr])
+        .assert()
+        .code(1);
 }
 
 #[test]
 fn mainnet_multisig_makes_mainnet_addresses() {
     let v = stdout_json(btc().args([
-        "--json", "-n", "mainnet", "multisig", "create", "--threshold", "2", "--pubkey", K1, K2, K3,
+        "--json",
+        "-n",
+        "mainnet",
+        "multisig",
+        "create",
+        "--threshold",
+        "2",
+        "--pubkey",
+        K1,
+        K2,
+        K3,
     ]));
     assert!(v["p2sh"].as_str().unwrap().starts_with('3'));
     assert!(v["p2wsh"].as_str().unwrap().starts_with("bc1q"));
@@ -785,7 +846,8 @@ fn signed_regtest_tx() -> Value {
     let key = stdout_json(btc().args(["--json", "-n", "regtest", "key", "generate"]));
     let wif = key["private_key_wif"].as_str().unwrap().to_owned();
     let pubkey = key["public_key"].as_str().unwrap().to_owned();
-    let addrs = stdout_json(btc().args(["--json", "-n", "regtest", "address", "from-pubkey", &pubkey]));
+    let addrs =
+        stdout_json(btc().args(["--json", "-n", "regtest", "address", "from-pubkey", &pubkey]));
     let address = addrs["addresses"]
         .as_array()
         .unwrap()
@@ -796,25 +858,44 @@ fn signed_regtest_tx() -> Value {
     let psbt = String::from_utf8(
         btc()
             .args([
-                "-n", "regtest", "tx", "create",
-                "--input", &format!("{zero}:0:100000:{address}"),
-                "--to", &format!("{address}:60000"),
-                "--change", &address,
-                "--fee-rate", "2",
+                "-n",
+                "regtest",
+                "tx",
+                "create",
+                "--input",
+                &format!("{zero}:0:100000:{address}"),
+                "--to",
+                &format!("{address}:60000"),
+                "--change",
+                &address,
+                "--fee-rate",
+                "2",
             ])
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
-    stdout_json(btc().args(["--json", "-n", "regtest", "tx", "sign", psbt.trim(), "--key", &wif]))
+    stdout_json(btc().args([
+        "--json",
+        "-n",
+        "regtest",
+        "tx",
+        "sign",
+        psbt.trim(),
+        "--key",
+        &wif,
+    ]))
 }
 
 #[test]
 fn tx_create_then_sign_produces_a_decodable_witness_transaction() {
     let signed = signed_regtest_tx();
     let hex = signed["hex"].as_str().unwrap();
-    assert!(hex.starts_with("02000000000101"), "segwit marker and flag expected: {hex}");
+    assert!(
+        hex.starts_with("02000000000101"),
+        "segwit marker and flag expected: {hex}"
+    );
     let decoded = stdout_json(btc().args(["--json", "-n", "regtest", "tx", "decode", hex]));
     assert_eq!(decoded["txid"], signed["txid"]);
 }
@@ -823,7 +904,13 @@ fn tx_create_then_sign_produces_a_decodable_witness_transaction() {
 fn broadcasting_on_mainnet_needs_an_explicit_yes() {
     let signed = signed_regtest_tx();
     btc()
-        .args(["-n", "mainnet", "tx", "broadcast", signed["hex"].as_str().unwrap()])
+        .args([
+            "-n",
+            "mainnet",
+            "tx",
+            "broadcast",
+            signed["hex"].as_str().unwrap(),
+        ])
         .assert()
         .code(1)
         .stderr(predicate::str::contains("MAINNET"))
@@ -899,9 +986,15 @@ fn fake_node(raw: Option<String>) -> String {
             let n = stream.read(&mut buf).unwrap();
             let request = String::from_utf8_lossy(&buf[..n]).to_string();
             let (status, body) = if request.contains("getblockchaininfo") {
-                ("200 OK", r#"{"result":{"chain":"main"},"error":null,"id":1}"#.to_owned())
+                (
+                    "200 OK",
+                    r#"{"result":{"chain":"main"},"error":null,"id":1}"#.to_owned(),
+                )
             } else if request.contains("getblockhash") {
-                ("200 OK", format!(r#"{{"result":"{}","error":null,"id":1}}"#, "ab".repeat(32)))
+                (
+                    "200 OK",
+                    format!(r#"{{"result":"{}","error":null,"id":1}}"#, "ab".repeat(32)),
+                )
             } else {
                 match &raw {
                     Some(object) => ("200 OK", format!(r#"{{"result":{object},"error":null,"id":1}}"#)),
@@ -940,7 +1033,14 @@ fn tx_decode_by_txid_and_block_also_computes_the_fee_from_the_nodes_amounts() {
     let url = fake_node(Some(spend_object()));
     let v = stdout_json(
         btc()
-            .args(["--json", "-n", "mainnet", "tx", "decode", &format!("{}@840000", "2b".repeat(32))])
+            .args([
+                "--json",
+                "-n",
+                "mainnet",
+                "tx",
+                "decode",
+                &format!("{}@840000", "2b".repeat(32)),
+            ])
             .env("BTC_RPC_URL", &url)
             .env("BTC_RPC_USER", "u")
             .env("BTC_RPC_PASSWORD", "p"),
@@ -954,7 +1054,15 @@ fn prevouts_from_node_fills_in_the_fee_for_pasted_hex_when_the_node_can_say() {
     let url = fake_node(Some(spend_object()));
     let v = stdout_json(
         btc()
-            .args(["--json", "-n", "mainnet", "tx", "decode", SPEND_HEX, "--prevouts-from-node"])
+            .args([
+                "--json",
+                "-n",
+                "mainnet",
+                "tx",
+                "decode",
+                SPEND_HEX,
+                "--prevouts-from-node",
+            ])
             .env("BTC_RPC_URL", &url)
             .env("BTC_RPC_USER", "u")
             .env("BTC_RPC_PASSWORD", "p"),
@@ -966,7 +1074,14 @@ fn prevouts_from_node_fills_in_the_fee_for_pasted_hex_when_the_node_can_say() {
 fn prevouts_from_node_without_a_transaction_index_says_how_to_proceed() {
     let url = fake_node(None);
     btc()
-        .args(["-n", "mainnet", "tx", "decode", SPEND_HEX, "--prevouts-from-node"])
+        .args([
+            "-n",
+            "mainnet",
+            "tx",
+            "decode",
+            SPEND_HEX,
+            "--prevouts-from-node",
+        ])
         .env("BTC_RPC_URL", &url)
         .env("BTC_RPC_USER", "u")
         .env("BTC_RPC_PASSWORD", "p")
@@ -990,7 +1105,14 @@ fn tx_decode_fetches_a_transaction_by_txid_and_block_height() {
     let url = fake_node(Some(coinbase_object()));
     let v = stdout_json(
         btc()
-            .args(["--json", "-n", "mainnet", "tx", "decode", &format!("{GENESIS_TXID}@5")])
+            .args([
+                "--json",
+                "-n",
+                "mainnet",
+                "tx",
+                "decode",
+                &format!("{GENESIS_TXID}@5"),
+            ])
             .env("BTC_RPC_URL", &url)
             .env("BTC_RPC_USER", "u")
             .env("BTC_RPC_PASSWORD", "p"),
@@ -1023,7 +1145,9 @@ fn tx_decode_rejects_a_malformed_block_reference() {
         .args(["tx", "decode", &format!("{GENESIS_TXID}@nope")])
         .assert()
         .code(1)
-        .stderr(predicate::str::contains("block height or a 64-character block hash"));
+        .stderr(predicate::str::contains(
+            "block height or a 64-character block hash",
+        ));
 }
 
 /// A node whose own fee estimator is blocked (like your gateway) but which serves blocks.
@@ -1041,7 +1165,10 @@ fn fake_fee_node(chain: &'static str) -> String {
             let n = stream.read(&mut buf).unwrap();
             let request = String::from_utf8_lossy(&buf[..n]).to_string();
             let (status, body) = if request.contains("getblockchaininfo") {
-                ("200 OK", format!(r#"{{"result":{{"chain":"{chain}"}},"error":null,"id":1}}"#))
+                (
+                    "200 OK",
+                    format!(r#"{{"result":{{"chain":"{chain}"}},"error":null,"id":1}}"#),
+                )
             } else if request.contains("estimatesmartfee") {
                 ("400 Bad Request", r#"{"error":"Bad Request","message":"Method \"estimatesmartfee\" is not permitted"}"#.to_owned())
             } else if request.contains("getmempoolinfo") {
@@ -1049,9 +1176,15 @@ fn fake_fee_node(chain: &'static str) -> String {
             } else if request.contains("getblockcount") {
                 ("200 OK", r#"{"result":100,"error":null,"id":1}"#.to_owned())
             } else if request.contains("getblockhash") {
-                ("200 OK", format!(r#"{{"result":"{}","error":null,"id":1}}"#, "cd".repeat(32)))
+                (
+                    "200 OK",
+                    format!(r#"{{"result":"{}","error":null,"id":1}}"#, "cd".repeat(32)),
+                )
             } else {
-                ("200 OK", format!(r#"{{"result":{block},"error":null,"id":1}}"#))
+                (
+                    "200 OK",
+                    format!(r#"{{"result":{block},"error":null,"id":1}}"#),
+                )
             };
             let reply = format!(
                 "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -1064,11 +1197,16 @@ fn fake_fee_node(chain: &'static str) -> String {
 }
 
 /// A fee service. Returns its URL and a counter of how many requests it received.
-fn fake_fee_service(body: &'static str) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+fn fake_fee_service(
+    body: &'static str,
+) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
     use std::io::{Read, Write};
     use std::sync::atomic::{AtomicUsize, Ordering};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let url = format!("http://{}/api/fee-estimates", listener.local_addr().unwrap());
+    let url = format!(
+        "http://{}/api/fee-estimates",
+        listener.local_addr().unwrap()
+    );
     let hits = std::sync::Arc::new(AtomicUsize::new(0));
     let counter = hits.clone();
     std::thread::spawn(move || {
@@ -1101,14 +1239,25 @@ fn mainnet_public_source_gives_per_target_rates_that_fall_as_the_target_rises() 
     let node = fake_fee_node("main");
     let (api, _) = fake_fee_service(r#"{"1":20.0,"6":10.0,"144":0.25}"#);
     let envs = [
-        ("BTC_RPC_URL", node.as_str()), ("BTC_RPC_USER", "u"), ("BTC_RPC_PASSWORD", "p"),
-        ("BTC_FEE_SOURCE", "public"), ("BTC_FEE_API_URL", api.as_str()),
+        ("BTC_RPC_URL", node.as_str()),
+        ("BTC_RPC_USER", "u"),
+        ("BTC_RPC_PASSWORD", "p"),
+        ("BTC_FEE_SOURCE", "public"),
+        ("BTC_FEE_API_URL", api.as_str()),
     ];
     let fast = fee_json(&["-n", "mainnet", "--target", "1"], &envs);
     let slow = fee_json(&["-n", "mainnet", "--target", "144"], &envs);
     assert_eq!(fast["sat_vb"], 20.0);
-    assert_eq!(slow["sat_vb"], 1.0, "0.25 is raised to the 1 sat/vB relay minimum");
-    assert!(fast["source"].as_str().unwrap().contains("public fee service"));
+    assert_eq!(
+        slow["sat_vb"], 1.0,
+        "0.25 is raised to the 1 sat/vB relay minimum"
+    );
+    assert!(
+        fast["source"]
+            .as_str()
+            .unwrap()
+            .contains("public fee service")
+    );
     assert!(fast["note"].as_str().unwrap().contains("IP address"));
 }
 
@@ -1116,8 +1265,11 @@ fn mainnet_public_source_gives_per_target_rates_that_fall_as_the_target_rises() 
 fn mainnet_blocks_source_estimates_from_recent_block_fee_rates() {
     let node = fake_fee_node("main");
     let envs = [
-        ("BTC_RPC_URL", node.as_str()), ("BTC_RPC_USER", "u"), ("BTC_RPC_PASSWORD", "p"),
-        ("BTC_FEE_SOURCE", "blocks"), ("BTC_FEE_BLOCKS", "1"),
+        ("BTC_RPC_URL", node.as_str()),
+        ("BTC_RPC_USER", "u"),
+        ("BTC_RPC_PASSWORD", "p"),
+        ("BTC_FEE_SOURCE", "blocks"),
+        ("BTC_FEE_BLOCKS", "1"),
     ];
     // Rates are 10 and 40 sat/vB with equal weight. A 1-block target uses the 25th percentile (10),
     // a long target the 1st (also 10): the cheapest rate that recently confirmed.
@@ -1132,10 +1284,19 @@ fn without_a_source_mainnet_falls_back_to_the_labelled_floor_and_calls_nobody() 
     let (api, hits) = fake_fee_service(r#"{"1":20.0}"#);
     let v = fee_json(
         &["-n", "mainnet"],
-        &[("BTC_RPC_URL", &node), ("BTC_RPC_USER", "u"), ("BTC_RPC_PASSWORD", "p"), ("BTC_FEE_API_URL", &api)],
+        &[
+            ("BTC_RPC_URL", &node),
+            ("BTC_RPC_USER", "u"),
+            ("BTC_RPC_PASSWORD", "p"),
+            ("BTC_FEE_API_URL", &api),
+        ],
     );
     assert_eq!(v["source"], "the mempool minimum");
-    assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0, "no source configured: no external call");
+    assert_eq!(
+        hits.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "no source configured: no external call"
+    );
 }
 
 #[test]
@@ -1144,12 +1305,24 @@ fn test_networks_never_use_an_external_fee_source() {
     let (api, hits) = fake_fee_service(r#"{"1":20.0}"#);
     let v = fee_json(
         &["-n", "regtest"],
-        &[("BTC_RPC_URL", &node), ("BTC_RPC_USER", "u"), ("BTC_RPC_PASSWORD", "p"),
-          ("BTC_FEE_SOURCE", "public"), ("BTC_FEE_API_URL", &api)],
+        &[
+            ("BTC_RPC_URL", &node),
+            ("BTC_RPC_USER", "u"),
+            ("BTC_RPC_PASSWORD", "p"),
+            ("BTC_FEE_SOURCE", "public"),
+            ("BTC_FEE_API_URL", &api),
+        ],
     );
     assert_eq!(v["source"], "the mempool minimum");
-    assert!(v["note"].as_str().unwrap().contains("no fee data yet"), "explains a fresh chain");
-    assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0, "regtest must not call a public service");
+    assert!(
+        v["note"].as_str().unwrap().contains("no fee data yet"),
+        "explains a fresh chain"
+    );
+    assert_eq!(
+        hits.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "regtest must not call a public service"
+    );
 }
 
 #[test]
@@ -1157,11 +1330,21 @@ fn a_failing_fee_service_falls_back_to_the_floor_and_says_why() {
     let node = fake_fee_node("main");
     let v = fee_json(
         &["-n", "mainnet"],
-        &[("BTC_RPC_URL", &node), ("BTC_RPC_USER", "u"), ("BTC_RPC_PASSWORD", "p"),
-          ("BTC_FEE_SOURCE", "public"), ("BTC_FEE_API_URL", "http://example.com/not-https")],
+        &[
+            ("BTC_RPC_URL", &node),
+            ("BTC_RPC_USER", "u"),
+            ("BTC_RPC_PASSWORD", "p"),
+            ("BTC_FEE_SOURCE", "public"),
+            ("BTC_FEE_API_URL", "http://example.com/not-https"),
+        ],
     );
     assert_eq!(v["source"], "the mempool minimum");
-    assert!(v["note"].as_str().unwrap().contains("public fee service failed"));
+    assert!(
+        v["note"]
+            .as_str()
+            .unwrap()
+            .contains("public fee service failed")
+    );
 }
 
 #[test]
@@ -1170,8 +1353,14 @@ fn the_fee_source_follows_the_selected_network_from_the_per_network_variable() {
     let (api, _) = fake_fee_service(r#"{"1":20.0,"6":10.0}"#);
     let v = fee_json(
         &[],
-        &[("BTC_NETWORK", "mainnet"), ("BTC_MAINNET_RPC_URL", &node), ("BTC_MAINNET_RPC_USER", "u"),
-          ("BTC_MAINNET_RPC_PASSWORD", "p"), ("BTC_MAINNET_FEE_SOURCE", "public"), ("BTC_MAINNET_FEE_API_URL", &api)],
+        &[
+            ("BTC_NETWORK", "mainnet"),
+            ("BTC_MAINNET_RPC_URL", &node),
+            ("BTC_MAINNET_RPC_USER", "u"),
+            ("BTC_MAINNET_RPC_PASSWORD", "p"),
+            ("BTC_MAINNET_FEE_SOURCE", "public"),
+            ("BTC_MAINNET_FEE_API_URL", &api),
+        ],
     );
     assert_eq!(v["sat_vb"], 10.0);
 }

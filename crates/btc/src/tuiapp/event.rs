@@ -1,5 +1,5 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use btc_core::keys::KeyType;
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use crate::app::{self, AppError, Context};
 use crate::output::Render;
@@ -67,11 +67,9 @@ pub fn handle_input(app: &mut AppState, action: Action) -> Option<TabState> {
                 return None;
             }
             match &mut app.tab_state {
-                TabState::KeysAndMnemonic { key_type_selected, state: _ } => {
-                    if c == ' ' {
-                        *key_type_selected = !*key_type_selected;
-                    }
-                }
+                TabState::KeysAndMnemonic {
+                    key_type_selected, ..
+                } if c == ' ' => *key_type_selected = !*key_type_selected,
                 TabState::Derive { xprv_input, .. } => xprv_input.push(c),
                 TabState::Addresses { pubkey_input, .. } => pubkey_input.push(c),
                 TabState::TxDecoder { hex_input, .. } => hex_input.push(c),
@@ -79,32 +77,28 @@ pub fn handle_input(app: &mut AppState, action: Action) -> Option<TabState> {
                 _ => {}
             }
         }
-        Action::ClearInput => {
-            match &mut app.tab_state {
-                TabState::Derive { xprv_input, .. } => xprv_input.clear(),
-                TabState::Addresses { pubkey_input, .. } => pubkey_input.clear(),
-                TabState::TxDecoder { hex_input, .. } => hex_input.clear(),
-                TabState::BlockExplorer { height_input, .. } => height_input.clear(),
-                _ => {}
+        Action::ClearInput => match &mut app.tab_state {
+            TabState::Derive { xprv_input, .. } => xprv_input.clear(),
+            TabState::Addresses { pubkey_input, .. } => pubkey_input.clear(),
+            TabState::TxDecoder { hex_input, .. } => hex_input.clear(),
+            TabState::BlockExplorer { height_input, .. } => height_input.clear(),
+            _ => {}
+        },
+        Action::Backspace => match &mut app.tab_state {
+            TabState::Derive { xprv_input, .. } => {
+                xprv_input.pop();
             }
-        }
-        Action::Backspace => {
-            match &mut app.tab_state {
-                TabState::Derive { xprv_input, .. } => {
-                    xprv_input.pop();
-                }
-                TabState::Addresses { pubkey_input, .. } => {
-                    pubkey_input.pop();
-                }
-                TabState::TxDecoder { hex_input, .. } => {
-                    hex_input.pop();
-                }
-                TabState::BlockExplorer { height_input, .. } => {
-                    height_input.pop();
-                }
-                _ => {}
+            TabState::Addresses { pubkey_input, .. } => {
+                pubkey_input.pop();
             }
-        }
+            TabState::TxDecoder { hex_input, .. } => {
+                hex_input.pop();
+            }
+            TabState::BlockExplorer { height_input, .. } => {
+                height_input.pop();
+            }
+            _ => {}
+        },
         Action::Up => {
             if let TabState::Fees { target_blocks, .. } = &mut app.tab_state {
                 if *target_blocks < 100 {
@@ -138,51 +132,76 @@ pub struct JobOutput {
 }
 
 fn plain(text: String) -> Result<JobOutput, AppError> {
-    Ok(JobOutput { text, handoff: None })
+    Ok(JobOutput {
+        text,
+        handoff: None,
+    })
 }
 
 pub fn run_job(tab: &TabState, ctx: &Context) -> Result<JobOutput, AppError> {
     match tab {
-        TabState::KeysAndMnemonic { key_type_selected, .. } => {
+        TabState::KeysAndMnemonic {
+            key_type_selected, ..
+        } => {
             if *key_type_selected {
                 let info = app::mnemonic::new(ctx, 12, None)?;
                 let xprv = info.root.xprv.to_string();
                 Ok(JobOutput {
-                    text: format!("{}\n\n-> root xprv sent to the Derive tab", info.render_human()),
+                    text: format!(
+                        "{}\n\n-> root xprv sent to the Derive tab",
+                        info.render_human()
+                    ),
                     handoff: Some(Handoff::Xprv(xprv)),
                 })
             } else {
                 let info = app::keys::generate(ctx, KeyType::Ecdsa);
                 let pubkey = info.public_key.clone();
                 Ok(JobOutput {
-                    text: format!("{}\n\n-> public key sent to the Addresses tab", info.render_human()),
+                    text: format!(
+                        "{}\n\n-> public key sent to the Addresses tab",
+                        info.render_human()
+                    ),
                     handoff: Some(Handoff::Pubkey(pubkey)),
                 })
             }
         }
-        TabState::Derive { xprv_input, path_input, count, .. } => {
-            let derivation =
-                app::derive::derive(ctx, xprv_input.trim(), path_input.trim(), *count as u32, None)?;
+        TabState::Derive {
+            xprv_input,
+            path_input,
+            count,
+            ..
+        } => {
+            let derivation = app::derive::derive(
+                ctx,
+                xprv_input.trim(),
+                path_input.trim(),
+                *count as u32,
+                None,
+            )?;
             let first_pubkey = derivation.children.first().map(|c| c.public_key.clone());
             let mut text = derivation.render_human();
             if first_pubkey.is_some() {
                 text.push_str("\n\n-> first public key sent to the Addresses tab");
             }
-            Ok(JobOutput { text, handoff: first_pubkey.map(Handoff::Pubkey) })
+            Ok(JobOutput {
+                text,
+                handoff: first_pubkey.map(Handoff::Pubkey),
+            })
         }
         TabState::Addresses { pubkey_input, .. } => {
             app::validate::pubkey_hex(pubkey_input.trim())?;
             plain(app::address::from_pubkey(ctx, pubkey_input.trim(), None)?.render_human())
         }
-        TabState::TxDecoder { hex_input, .. } => {
-            plain(app::tx::decode(ctx, hex_input.trim(), app::tx::PrevoutMode::BestEffort)?.render_human())
-        }
+        TabState::TxDecoder { hex_input, .. } => plain(
+            app::tx::decode(ctx, hex_input.trim(), app::tx::PrevoutMode::BestEffort)?
+                .render_human(),
+        ),
         TabState::BlockExplorer { height_input, .. } => {
             plain(app::node::block_info(ctx, height_input.trim())?.render_human())
         }
-        TabState::Fees { target_blocks, .. } => {
-            plain(app::node::fee_estimate(ctx, Some(*target_blocks as u16), None, None)?.render_human())
-        }
+        TabState::Fees { target_blocks, .. } => plain(
+            app::node::fee_estimate(ctx, Some(*target_blocks as u16), None, None)?.render_human(),
+        ),
         TabState::NodeStatus { .. } => plain(app::node::status(ctx)?.render_human()),
     }
 }
@@ -217,7 +236,8 @@ mod tests {
             cookie: Some("/nonexistent/.cookie".into()),
             ..RpcOptions::default()
         };
-        let backend = CoreRpcBackend::new(&RpcConfig::resolve(Network::Regtest, options())).unwrap();
+        let backend =
+            CoreRpcBackend::new(&RpcConfig::resolve(Network::Regtest, options())).unwrap();
         ctx_with(Arc::new(backend), options())
     }
 
@@ -312,7 +332,9 @@ mod tests {
     #[test]
     fn node_tabs_report_an_unreachable_node() {
         for t in [Tab::NodeStatus, Tab::Fees] {
-            let err = run_tab(&tab(t), &unreachable_ctx()).unwrap_err().to_string();
+            let err = run_tab(&tab(t), &unreachable_ctx())
+                .unwrap_err()
+                .to_string();
             assert!(err.contains("could not reach node"), "{err}");
         }
         let mut state = tab(Tab::BlockExplorer);
@@ -333,7 +355,9 @@ mod tests {
         }
         app.next_tab();
         app.prev_tab();
-        assert!(matches!(&app.tab_state, TabState::Derive { xprv_input, .. } if xprv_input == "typed text"));
+        assert!(
+            matches!(&app.tab_state, TabState::Derive { xprv_input, .. } if xprv_input == "typed text")
+        );
         app.prev_tab();
         assert!(matches!(
             &app.tab_state,
@@ -362,7 +386,13 @@ mod tests {
         handle_input(&mut app, Action::Enter);
         app.next_tab();
         app.apply_outcome(Tab::KeysAndMnemonic, Ok("late result".into()));
-        assert!(matches!(&app.tab_state, TabState::Derive { state: OperationState::Idle, .. }));
+        assert!(matches!(
+            &app.tab_state,
+            TabState::Derive {
+                state: OperationState::Idle,
+                ..
+            }
+        ));
         app.prev_tab();
         assert!(matches!(
             &app.tab_state,
@@ -374,18 +404,25 @@ mod tests {
     fn a_generated_mnemonic_pre_fills_the_derive_tab_with_its_xprv() {
         let ctx = mock_ctx();
         let mut keys = tab(Tab::KeysAndMnemonic);
-        if let TabState::KeysAndMnemonic { key_type_selected, .. } = &mut keys {
+        if let TabState::KeysAndMnemonic {
+            key_type_selected, ..
+        } = &mut keys
+        {
             *key_type_selected = true;
         }
         let out = run_job(&keys, &ctx).unwrap();
         assert!(out.text.contains("sent to the Derive tab"));
-        let Some(Handoff::Xprv(xprv)) = out.handoff else { panic!("expected an xprv hand-off") };
+        let Some(Handoff::Xprv(xprv)) = out.handoff else {
+            panic!("expected an xprv hand-off")
+        };
         assert!(xprv.starts_with("tprv"), "{xprv}");
 
         let mut app = AppState::new();
         app.apply_handoff(Handoff::Xprv(xprv.clone()));
         app.next_tab();
-        assert!(matches!(&app.tab_state, TabState::Derive { xprv_input, .. } if *xprv_input == xprv));
+        assert!(
+            matches!(&app.tab_state, TabState::Derive { xprv_input, .. } if *xprv_input == xprv)
+        );
         // ...and the Derive tab can actually use it.
         assert!(run_job(&app.tab_state, &ctx).is_ok());
     }
@@ -394,13 +431,20 @@ mod tests {
     fn a_generated_key_and_a_derived_key_pre_fill_the_addresses_tab() {
         let ctx = mock_ctx();
         let out = run_job(&tab(Tab::KeysAndMnemonic), &ctx).unwrap();
-        let Some(Handoff::Pubkey(pubkey)) = out.handoff else { panic!("expected a pubkey hand-off") };
+        let Some(Handoff::Pubkey(pubkey)) = out.handoff else {
+            panic!("expected a pubkey hand-off")
+        };
         let mut app = AppState::new();
         app.apply_handoff(Handoff::Pubkey(pubkey.clone()));
         app.next_tab();
         app.next_tab();
-        assert!(matches!(&app.tab_state, TabState::Addresses { pubkey_input, .. } if *pubkey_input == pubkey));
-        assert!(run_job(&app.tab_state, &ctx).is_ok(), "the hand-off must be a valid public key");
+        assert!(
+            matches!(&app.tab_state, TabState::Addresses { pubkey_input, .. } if *pubkey_input == pubkey)
+        );
+        assert!(
+            run_job(&app.tab_state, &ctx).is_ok(),
+            "the hand-off must be a valid public key"
+        );
     }
 
     #[test]
@@ -408,11 +452,15 @@ mod tests {
         let mut app = AppState::new();
         app.configure_network("MAINNET (real funds)".into(), true);
         app.next_tab();
-        assert!(matches!(&app.tab_state, TabState::Derive { path_input, .. } if path_input == "m/84'/0'/0'/0/0"));
+        assert!(
+            matches!(&app.tab_state, TabState::Derive { path_input, .. } if path_input == "m/84'/0'/0'/0/0")
+        );
         let mut app = AppState::new();
         app.configure_network("regtest".into(), false);
         app.next_tab();
-        assert!(matches!(&app.tab_state, TabState::Derive { path_input, .. } if path_input == "m/84'/1'/0'/0/0"));
+        assert!(
+            matches!(&app.tab_state, TabState::Derive { path_input, .. } if path_input == "m/84'/1'/0'/0/0")
+        );
     }
 
     fn press(code: KeyCode) -> Action {

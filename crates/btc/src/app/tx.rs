@@ -5,12 +5,12 @@ use bitcoin::{Amount, ScriptBuf, Transaction, TxOut};
 use serde::Serialize;
 use zeroize::Zeroizing;
 
-use btc_core::tx::build::{create_psbt, parse_address, TxInput, TxOutput};
-use btc_core::tx::decode::{self, DecodedTx};
 use btc_core::keys::parse_private_key;
+use btc_core::tx::build::{TxInput, TxOutput, create_psbt, parse_address};
+use btc_core::tx::decode::{self, DecodedTx};
 use btc_core::tx::sign::{extract_signed, sign_psbt};
 
-use super::input::{text_arg, secret_arg, ensure_single_stdin};
+use super::input::{ensure_single_stdin, secret_arg, text_arg};
 use super::{AppError, Context};
 use crate::output::Render;
 
@@ -67,12 +67,16 @@ fn is_hex64(s: &str) -> bool {
 fn classify(input: &str) -> Result<TxInputKind, AppError> {
     let compact: String = input.chars().filter(|c| !c.is_whitespace()).collect();
     if is_hex64(&compact) {
-        return Ok(TxInputKind::Txid { txid: compact, block: None });
+        return Ok(TxInputKind::Txid {
+            txid: compact,
+            block: None,
+        });
     }
     if let Some((txid, block)) = compact.split_once('@') {
         if !is_hex64(txid) {
             return Err(AppError::Input(
-                "before the @ there must be a 64-character txid: <txid>@<block height or hash>".into(),
+                "before the @ there must be a 64-character txid: <txid>@<block height or hash>"
+                    .into(),
             ));
         }
         let height = !block.is_empty() && block.chars().all(|c| c.is_ascii_digit());
@@ -81,7 +85,10 @@ fn classify(input: &str) -> Result<TxInputKind, AppError> {
                 "after the @ there must be a block height or a 64-character block hash".into(),
             ));
         }
-        return Ok(TxInputKind::Txid { txid: txid.to_owned(), block: Some(block.to_owned()) });
+        return Ok(TxInputKind::Txid {
+            txid: txid.to_owned(),
+            block: Some(block.to_owned()),
+        });
     }
     Ok(TxInputKind::Hex)
 }
@@ -106,7 +113,10 @@ fn to_txouts(prevouts: &[(u64, String)]) -> Result<Vec<TxOut>, AppError> {
         .map(|(sats, script_hex)| {
             let script = ScriptBuf::from_hex(script_hex)
                 .map_err(|e| AppError::Input(format!("node returned a bad script: {e}")))?;
-            Ok(TxOut { value: Amount::from_sat(*sats), script_pubkey: script })
+            Ok(TxOut {
+                value: Amount::from_sat(*sats),
+                script_pubkey: script,
+            })
         })
         .collect()
 }
@@ -115,14 +125,19 @@ fn to_txouts(prevouts: &[(u64, String)]) -> Result<Vec<TxOut>, AppError> {
 /// otherwise by fetching each previous transaction (needs a transaction index).
 fn prevouts_from_node(ctx: &Context, tx: &Transaction) -> Result<Vec<TxOut>, AppError> {
     super::node::ensure_chain(ctx)?;
-    let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+    let backend = ctx
+        .backend
+        .as_ref()
+        .ok_or(AppError::NotImplemented("node backend"))?;
 
-    let own = backend.transaction(&tx.compute_txid().to_string(), None).map_err(|e| match &e {
-        btc_node::NodeError::Rpc(msg) if msg.contains("No such mempool transaction") => {
-            AppError::Input(NO_INDEX_HINT.into())
-        }
-        _ => AppError::Node(e),
-    })?;
+    let own = backend
+        .transaction(&tx.compute_txid().to_string(), None)
+        .map_err(|e| match &e {
+            btc_node::NodeError::Rpc(msg) if msg.contains("No such mempool transaction") => {
+                AppError::Input(NO_INDEX_HINT.into())
+            }
+            _ => AppError::Node(e),
+        })?;
     if let Some(prevouts) = own.prevouts {
         return to_txouts(&prevouts);
     }
@@ -149,7 +164,10 @@ pub fn decode(ctx: &Context, input: &str, mode: PrevoutMode) -> Result<DecodedTx
         TxInputKind::Hex => (input, None),
         TxInputKind::Txid { txid, block } => {
             super::node::ensure_chain(ctx)?;
-            let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+            let backend = ctx
+                .backend
+                .as_ref()
+                .ok_or(AppError::NotImplemented("node backend"))?;
             let fetched = backend.transaction(&txid, block.as_deref()).map_err(|e| match (&e, &block) {
                 (btc_node::NodeError::Rpc(msg), None) if msg.contains("No such mempool transaction") => {
                     AppError::Input(
@@ -246,7 +264,11 @@ pub fn sign(
     if private_key.network.is_mainnet() != ctx.network.is_mainnet() {
         return Err(AppError::Input(format!(
             "this is a {} private key but the network is {}",
-            if private_key.network.is_mainnet() { "mainnet" } else { "test-network" },
+            if private_key.network.is_mainnet() {
+                "mainnet"
+            } else {
+                "test-network"
+            },
             ctx.network
         )));
     }
@@ -275,7 +297,10 @@ pub fn broadcast(ctx: &Context, hex: &str, yes: bool) -> Result<BroadcastOutput,
     }
     super::node::ensure_chain(ctx)?;
 
-    let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+    let backend = ctx
+        .backend
+        .as_ref()
+        .ok_or(AppError::NotImplemented("node backend"))?;
     Ok(BroadcastOutput {
         txid: backend.send_raw_transaction(tx_hex)?,
     })

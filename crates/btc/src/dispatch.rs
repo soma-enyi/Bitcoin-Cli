@@ -8,7 +8,10 @@ use btc_node::{CoreRpcBackend, RpcConfig, RpcOptions};
 use clap::CommandFactory;
 
 use crate::app::{self, AppError, Context, FeeConfig, FeeSource};
-use crate::cli::{FeeSourceArg, AddressCmd, BlockCmd, Cli, Command, FeeCmd, FeeMode, KeyCmd, MnemonicCmd, MultisigCmd, NodeCmd, PsbtCmd, TxCmd};
+use crate::cli::{
+    AddressCmd, BlockCmd, Cli, Command, FeeCmd, FeeMode, FeeSourceArg, KeyCmd, MnemonicCmd,
+    MultisigCmd, NodeCmd, PsbtCmd, TxCmd,
+};
 use crate::output::{OutputMode, emit};
 
 pub fn output_mode(cli: &Cli) -> OutputMode {
@@ -81,7 +84,8 @@ pub fn context(cli: &Cli) -> Result<Context, AppError> {
 
     let rpc_config = RpcConfig::resolve(network, options);
 
-    let backend = Some(Arc::new(CoreRpcBackend::new(&rpc_config)?) as Arc<dyn btc_node::NodeBackend>);
+    let backend =
+        Some(Arc::new(CoreRpcBackend::new(&rpc_config)?) as Arc<dyn btc_node::NodeBackend>);
 
     let fees = FeeConfig {
         source: match cli.global.fees.fee_source {
@@ -181,14 +185,44 @@ pub fn run(cli: Cli, ctx: &Context) -> Result<(), AppError> {
         }
 
         // Stubs: each is replaced as its phase is implemented.
-        Command::Tx(TxCmd::Create { inputs, outputs, change, fee_rate }) => emit(&app::tx::create(ctx, &inputs, &outputs, change.as_deref(), fee_rate)?, ctx.output),
-        Command::Tx(TxCmd::Sign { psbt, key, key_file }) => emit(&app::tx::sign(ctx, &psbt, key.as_deref(), key_file.as_ref().and_then(|p| p.to_str()))?, ctx.output),
-        Command::Tx(TxCmd::Broadcast { hex, yes }) => emit(&app::tx::broadcast(ctx, &hex, yes)?, ctx.output),
+        Command::Tx(TxCmd::Create {
+            inputs,
+            outputs,
+            change,
+            fee_rate,
+        }) => emit(
+            &app::tx::create(ctx, &inputs, &outputs, change.as_deref(), fee_rate)?,
+            ctx.output,
+        ),
+        Command::Tx(TxCmd::Sign {
+            psbt,
+            key,
+            key_file,
+        }) => emit(
+            &app::tx::sign(
+                ctx,
+                &psbt,
+                key.as_deref(),
+                key_file.as_ref().and_then(|p| p.to_str()),
+            )?,
+            ctx.output,
+        ),
+        Command::Tx(TxCmd::Broadcast { hex, yes }) => {
+            emit(&app::tx::broadcast(ctx, &hex, yes)?, ctx.output)
+        }
 
-        Command::Psbt(PsbtCmd::Analyze { psbt }) => emit(&app::psbt::analyze(ctx, &psbt)?, ctx.output),
-        Command::Psbt(PsbtCmd::Combine { psbts }) => emit(&app::psbt::combine(ctx, &psbts)?, ctx.output),
+        Command::Psbt(PsbtCmd::Analyze { psbt }) => {
+            emit(&app::psbt::analyze(ctx, &psbt)?, ctx.output)
+        }
+        Command::Psbt(PsbtCmd::Combine { psbts }) => {
+            emit(&app::psbt::combine(ctx, &psbts)?, ctx.output)
+        }
 
-        Command::Multisig(MultisigCmd::Create { threshold, pubkeys, keep_order }) => emit(
+        Command::Multisig(MultisigCmd::Create {
+            threshold,
+            pubkeys,
+            keep_order,
+        }) => emit(
             &app::multisig::create(ctx, threshold, &pubkeys, keep_order)?,
             ctx.output,
         ),
@@ -196,7 +230,10 @@ pub fn run(cli: Cli, ctx: &Context) -> Result<(), AppError> {
             emit(&app::multisig::analyze(ctx, &script)?, ctx.output)
         }
 
-        Command::Tui => { crate::tuiapp::run(ctx).map_err(|e| AppError::Input(format!("TUI failed: {e}")))?; Ok(()) }
+        Command::Tui => {
+            crate::tuiapp::run(ctx).map_err(|e| AppError::Input(format!("TUI failed: {e}")))?;
+            Ok(())
+        }
     }
 }
 

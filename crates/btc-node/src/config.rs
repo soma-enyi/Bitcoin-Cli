@@ -47,7 +47,11 @@ impl RpcConfig {
                 user,
                 password: Zeroizing::new(password),
             },
-            _ => RpcAuth::Cookie(options.cookie.unwrap_or_else(|| default_cookie_path(network))),
+            _ => RpcAuth::Cookie(
+                options
+                    .cookie
+                    .unwrap_or_else(|| default_cookie_path(network)),
+            ),
         };
 
         RpcConfig { url, auth }

@@ -53,7 +53,9 @@ pub fn create(
             )));
         }
         if keys.contains(&key) {
-            return Err(CoreError::InvalidInput(format!("duplicate public key {hex}")));
+            return Err(CoreError::InvalidInput(format!(
+                "duplicate public key {hex}"
+            )));
         }
         keys.push(key);
     }
@@ -76,7 +78,9 @@ pub fn create(
         total_keys: total,
         pubkeys: keys.iter().map(|k| k.to_string()).collect(),
         script_hex: script.to_hex_string(),
-        p2sh: Address::p2sh(&script, net).map_err(|e| CoreError::InvalidInput(e.to_string()))?.to_string(),
+        p2sh: Address::p2sh(&script, net)
+            .map_err(|e| CoreError::InvalidInput(e.to_string()))?
+            .to_string(),
         p2wsh: Address::p2wsh(&script, net).to_string(),
         p2sh_p2wsh: Address::p2shwsh(&script, net).to_string(),
     })
@@ -99,7 +103,9 @@ fn parse_script(script: &Script) -> Result<(usize, Vec<String>), CoreError> {
         return Err(not_multisig());
     }
     let small = |i: &Instruction| match i {
-        Instruction::Op(op) if (OP_PUSHNUM_1.to_u8()..=OP_PUSHNUM_16.to_u8()).contains(&op.to_u8()) => {
+        Instruction::Op(op)
+            if (OP_PUSHNUM_1.to_u8()..=OP_PUSHNUM_16.to_u8()).contains(&op.to_u8()) =>
+        {
             Some((op.to_u8() - OP_PUSHNUM_1.to_u8() + 1) as usize)
         }
         _ => None,
@@ -129,9 +135,14 @@ fn parse_script(script: &Script) -> Result<(usize, Vec<String>), CoreError> {
 fn hex_to_bytes(s: &str) -> Result<Vec<u8>, CoreError> {
     let s = s.trim();
     if s.len() % 2 != 0 || !s.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(CoreError::InvalidInput("script must be an even-length hex string".into()));
+        return Err(CoreError::InvalidInput(
+            "script must be an even-length hex string".into(),
+        ));
     }
-    Ok((0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect())
+    Ok((0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect())
 }
 
 #[cfg(test)]

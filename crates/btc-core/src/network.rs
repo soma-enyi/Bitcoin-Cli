@@ -94,7 +94,10 @@ mod tests {
             bitcoin::Network::from(Network::Testnet4),
             bitcoin::Network::Testnet4
         );
-        assert_eq!(bitcoin::Network::from(Network::Mainnet), bitcoin::Network::Bitcoin);
+        assert_eq!(
+            bitcoin::Network::from(Network::Mainnet),
+            bitcoin::Network::Bitcoin
+        );
         // Only mainnet may map to mainnet prefixes.
         for network in Network::ALL {
             assert_eq!(

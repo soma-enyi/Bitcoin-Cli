@@ -20,15 +20,20 @@ fn rpc(message: impl Into<String>) -> NodeError {
 
 /// Parses `{"1": 2.1, "6": 1.1, ...}`, dropping nothing silently: any bad entry is an error.
 pub fn parse_estimates(json: &str) -> Result<BTreeMap<u16, f64>, NodeError> {
-    let map: BTreeMap<String, f64> = serde_json::from_str(json)
-        .map_err(|e| rpc(format!("the fee service returned something unexpected: {e}")))?;
+    let map: BTreeMap<String, f64> = serde_json::from_str(json).map_err(|e| {
+        rpc(format!(
+            "the fee service returned something unexpected: {e}"
+        ))
+    })?;
     let mut out = BTreeMap::new();
     for (target, rate) in map {
         let target: u16 = target
             .parse()
             .map_err(|_| rpc(format!("the fee service returned a bad target `{target}`")))?;
         if !rate.is_finite() || rate <= 0.0 || rate > MAX_PLAUSIBLE {
-            return Err(rpc(format!("the fee service returned an implausible rate {rate} sat/vB")));
+            return Err(rpc(format!(
+                "the fee service returned an implausible rate {rate} sat/vB"
+            )));
         }
         out.insert(target, rate);
     }
@@ -51,12 +56,15 @@ pub fn rate_for_target(estimates: &BTreeMap<u16, f64>, target: u16) -> f64 {
 }
 
 fn is_loopback(url: &str) -> bool {
-    ["//127.0.0.1", "//localhost", "//[::1]"].iter().any(|h| url.contains(h))
+    ["//127.0.0.1", "//localhost", "//[::1]"]
+        .iter()
+        .any(|h| url.contains(h))
 }
 
 /// Fetches the public estimates and picks the rate for `target`.
 pub fn fetch_public(url: &str, target: u16) -> Result<f64, NodeError> {
-    if !url.starts_with("https://") && !(url.starts_with("http://") && is_loopback(url)) {
+    let secure = url.starts_with("https://") || (url.starts_with("http://") && is_loopback(url));
+    if !secure {
         return Err(rpc("the fee service URL must be https://"));
     }
     let response = bitreq::Request::new(bitreq::Method::Get, url)
@@ -64,7 +72,10 @@ pub fn fetch_public(url: &str, target: u16) -> Result<f64, NodeError> {
         .send()
         .map_err(|e| rpc(format!("could not reach the fee service: {e}")))?;
     if response.status_code != 200 {
-        return Err(rpc(format!("the fee service answered HTTP {}", response.status_code)));
+        return Err(rpc(format!(
+            "the fee service answered HTTP {}",
+            response.status_code
+        )));
     }
     let body = response
         .as_str()

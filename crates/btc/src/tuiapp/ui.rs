@@ -1,6 +1,6 @@
+use crate::tuiapp::app::{AppState, OperationState, Tab, TabState};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Gauge, Paragraph, Tabs, Wrap};
-use crate::tuiapp::app::{AppState, Tab, TabState, OperationState};
 
 const LOADING_SPINNERS: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -22,10 +22,7 @@ pub fn draw(frame: &mut Frame, app: &AppState) {
 }
 
 fn draw_header(frame: &mut Frame, app: &AppState, area: Rect) {
-    let tabs: Vec<&str> = Tab::all()
-        .iter()
-        .map(|t| t.name())
-        .collect();
+    let tabs: Vec<&str> = Tab::all().iter().map(|t| t.name()).collect();
 
     let current = Tab::all()
         .iter()
@@ -73,14 +70,24 @@ fn draw_footer(frame: &mut Frame, app: &AppState, area: Rect) {
     let help_widget = Paragraph::new(help)
         .alignment(Alignment::Left)
         .style(Style::default().fg(Color::DarkGray))
-        .block(Block::default().borders(Borders::TOP).style(Style::default().fg(Color::Cyan)));
+        .block(
+            Block::default()
+                .borders(Borders::TOP)
+                .style(Style::default().fg(Color::Cyan)),
+        );
 
     frame.render_widget(help_widget, chunks[0]);
 
-    let status = format!("Net: {} | Tab: {}", app.network_label, app.current_tab.name());
-    let status_widget = Paragraph::new(status)
-        .alignment(Alignment::Right)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let status = format!(
+        "Net: {} | Tab: {}",
+        app.network_label,
+        app.current_tab.name()
+    );
+    let status_widget = Paragraph::new(status).alignment(Alignment::Right).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
 
     frame.render_widget(status_widget, chunks[1]);
 }
@@ -133,10 +140,14 @@ fn draw_keys_mnemonic(frame: &mut Frame, app: &AppState, area: Rect) {
             Line::from(""),
             Line::from(vec![
                 "Mode: ".into(),
-                if *key_type_selected { "📝 Mnemonic" } else { "🔑 Key Pair" }
-                    .to_string()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
+                if *key_type_selected {
+                    "📝 Mnemonic"
+                } else {
+                    "🔑 Key Pair"
+                }
+                .to_string()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
             ]),
             Line::from(""),
             Line::from("Press SPACE to toggle mode"),
@@ -150,17 +161,28 @@ fn draw_keys_mnemonic(frame: &mut Frame, app: &AppState, area: Rect) {
             OperationState::Idle => {
                 let empty = Paragraph::new("Ready to generate... Press Enter")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::DarkGray)));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::DarkGray)),
+                    );
                 frame.render_widget(empty, chunks[1]);
             }
             OperationState::Loading => {
                 let loading_text = vec![
                     Line::from(""),
-                    Line::from(format!("{} Generating cryptographic material...", get_spinner_frame(app.frame_count)))
-                        .style(Style::default().fg(Color::Yellow)),
+                    Line::from(format!(
+                        "{} Generating cryptographic material...",
+                        get_spinner_frame(app.frame_count)
+                    ))
+                    .style(Style::default().fg(Color::Yellow)),
                 ];
                 let loading = Paragraph::new(loading_text)
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Yellow)))
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Yellow)),
+                    )
                     .alignment(Alignment::Center);
                 frame.render_widget(loading, chunks[1]);
             }
@@ -168,20 +190,34 @@ fn draw_keys_mnemonic(frame: &mut Frame, app: &AppState, area: Rect) {
                 let output_text = Paragraph::new(output.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Green))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Green)).title(" ✓ Output "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Green))
+                            .title(" ✓ Output "),
+                    );
                 frame.render_widget(output_text, chunks[1]);
             }
             OperationState::Error(err) => {
                 let error_text = Paragraph::new(err.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Red))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Red)).title(" ✗ Error "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Red))
+                            .title(" ✗ Error "),
+                    );
                 frame.render_widget(error_text, chunks[1]);
             }
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[2]);
     }
@@ -197,7 +233,11 @@ fn draw_derive(frame: &mut Frame, app: &AppState, area: Rect) {
     {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(8), Constraint::Min(3), Constraint::Length(2)])
+            .constraints([
+                Constraint::Length(8),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ])
             .split(area);
 
         let (status_text, status_color) = draw_state_indicator(state, app.frame_count);
@@ -214,8 +254,16 @@ fn draw_derive(frame: &mut Frame, app: &AppState, area: Rect) {
 
         let input_box = Paragraph::new(format!(
             "xprv Key:      {}\nPath:          {}\nKey Count:     {}",
-            if xprv_input.is_empty() { "[empty]" } else { xprv_input },
-            if path_input.is_empty() { "[empty]" } else { path_input },
+            if xprv_input.is_empty() {
+                "[empty]"
+            } else {
+                xprv_input
+            },
+            if path_input.is_empty() {
+                "[empty]"
+            } else {
+                path_input
+            },
             count
         ))
         .wrap(Wrap { trim: true })
@@ -227,34 +275,59 @@ fn draw_derive(frame: &mut Frame, app: &AppState, area: Rect) {
             OperationState::Idle => {
                 let empty = Paragraph::new("Enter xprv key and press Enter to derive...")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::DarkGray)));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::DarkGray)),
+                    );
                 frame.render_widget(empty, chunks[1]);
             }
             OperationState::Loading => {
-                let loading = Paragraph::new(format!("{} Deriving keys from path...", get_spinner_frame(app.frame_count)))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Yellow)))
-                    .alignment(Alignment::Center)
-                    .style(Style::default().fg(Color::Yellow));
+                let loading = Paragraph::new(format!(
+                    "{} Deriving keys from path...",
+                    get_spinner_frame(app.frame_count)
+                ))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Yellow)),
+                )
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::Yellow));
                 frame.render_widget(loading, chunks[1]);
             }
             OperationState::Success(out) => {
                 let output = Paragraph::new(out.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Green))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Green)).title(" ✓ Derived Keys "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Green))
+                            .title(" ✓ Derived Keys "),
+                    );
                 frame.render_widget(output, chunks[1]);
             }
             OperationState::Error(err) => {
                 let error = Paragraph::new(err.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Red))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Red)).title(" ✗ Error "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Red))
+                            .title(" ✗ Error "),
+                    );
                 frame.render_widget(error, chunks[1]);
             }
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[2]);
     }
@@ -269,7 +342,11 @@ fn draw_addresses(frame: &mut Frame, app: &AppState, area: Rect) {
     {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(7), Constraint::Min(3), Constraint::Length(2)])
+            .constraints([
+                Constraint::Length(7),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ])
             .split(area);
 
         let (status_text, status_color) = draw_state_indicator(state, app.frame_count);
@@ -287,7 +364,11 @@ fn draw_addresses(frame: &mut Frame, app: &AppState, area: Rect) {
         let addr_types = ["P2PKH", "P2WPKH", "P2SH", "P2WSH"];
         let input_box = Paragraph::new(format!(
             "Public Key:    {}\nAddress Type:  {} (0:P2PKH, 1:P2WPKH, 2:P2SH, 3:P2WSH)",
-            if pubkey_input.is_empty() { "[empty]" } else { pubkey_input },
+            if pubkey_input.is_empty() {
+                "[empty]"
+            } else {
+                pubkey_input
+            },
             addr_types.get(*addr_type).unwrap_or(&"Unknown")
         ))
         .wrap(Wrap { trim: true })
@@ -299,34 +380,59 @@ fn draw_addresses(frame: &mut Frame, app: &AppState, area: Rect) {
             OperationState::Idle => {
                 let empty = Paragraph::new("Enter public key and press Enter...")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::DarkGray)));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::DarkGray)),
+                    );
                 frame.render_widget(empty, chunks[1]);
             }
             OperationState::Loading => {
-                let loading = Paragraph::new(format!("{} Generating address...", get_spinner_frame(app.frame_count)))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Yellow)))
-                    .alignment(Alignment::Center)
-                    .style(Style::default().fg(Color::Yellow));
+                let loading = Paragraph::new(format!(
+                    "{} Generating address...",
+                    get_spinner_frame(app.frame_count)
+                ))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Yellow)),
+                )
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::Yellow));
                 frame.render_widget(loading, chunks[1]);
             }
             OperationState::Success(out) => {
                 let output = Paragraph::new(out.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Green))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Green)).title(" ✓ Address "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Green))
+                            .title(" ✓ Address "),
+                    );
                 frame.render_widget(output, chunks[1]);
             }
             OperationState::Error(err) => {
                 let error = Paragraph::new(err.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Red))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Red)).title(" ✗ Error "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Red))
+                            .title(" ✗ Error "),
+                    );
                 frame.render_widget(error, chunks[1]);
             }
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[2]);
     }
@@ -336,7 +442,11 @@ fn draw_tx_decoder(frame: &mut Frame, app: &AppState, area: Rect) {
     if let TabState::TxDecoder { hex_input, state } = &app.tab_state {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(5), Constraint::Min(3), Constraint::Length(2)])
+            .constraints([
+                Constraint::Length(5),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ])
             .split(area);
 
         let (status_text, status_color) = draw_state_indicator(state, app.frame_count);
@@ -351,54 +461,96 @@ fn draw_tx_decoder(frame: &mut Frame, app: &AppState, area: Rect) {
         let inner = block.inner(chunks[0]);
         frame.render_widget(block, chunks[0]);
 
-        let input_box = Paragraph::new(format!("Tx:  {}", if hex_input.is_empty() { "[raw hex, a txid, or txid@height]" } else { hex_input }))
-            .wrap(Wrap { trim: true })
-            .style(Style::default().fg(Color::Yellow));
+        let input_box = Paragraph::new(format!(
+            "Tx:  {}",
+            if hex_input.is_empty() {
+                "[raw hex, a txid, or txid@height]"
+            } else {
+                hex_input
+            }
+        ))
+        .wrap(Wrap { trim: true })
+        .style(Style::default().fg(Color::Yellow));
 
         frame.render_widget(input_box, inner);
 
         match state {
             OperationState::Idle => {
-                let empty = Paragraph::new("Paste raw hex, a txid, or <txid>@<block height> and press Enter...")
-                    .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::DarkGray)));
+                let empty = Paragraph::new(
+                    "Paste raw hex, a txid, or <txid>@<block height> and press Enter...",
+                )
+                .style(Style::default().fg(Color::DarkGray))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::DarkGray)),
+                );
                 frame.render_widget(empty, chunks[1]);
             }
             OperationState::Loading => {
-                let loading = Paragraph::new(format!("{} Decoding transaction...", get_spinner_frame(app.frame_count)))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Yellow)))
-                    .alignment(Alignment::Center)
-                    .style(Style::default().fg(Color::Yellow));
+                let loading = Paragraph::new(format!(
+                    "{} Decoding transaction...",
+                    get_spinner_frame(app.frame_count)
+                ))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Yellow)),
+                )
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::Yellow));
                 frame.render_widget(loading, chunks[1]);
             }
             OperationState::Success(out) => {
                 let output = Paragraph::new(out.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Green))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Green)).title(" ✓ Tx Details "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Green))
+                            .title(" ✓ Tx Details "),
+                    );
                 frame.render_widget(output, chunks[1]);
             }
             OperationState::Error(err) => {
                 let error = Paragraph::new(err.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Red))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Red)).title(" ✗ Error "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Red))
+                            .title(" ✗ Error "),
+                    );
                 frame.render_widget(error, chunks[1]);
             }
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[2]);
     }
 }
 
 fn draw_block_explorer(frame: &mut Frame, app: &AppState, area: Rect) {
-    if let TabState::BlockExplorer { height_input, state } = &app.tab_state {
+    if let TabState::BlockExplorer {
+        height_input,
+        state,
+    } = &app.tab_state
+    {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(5), Constraint::Min(3), Constraint::Length(2)])
+            .constraints([
+                Constraint::Length(5),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ])
             .split(area);
 
         let (status_text, status_color) = draw_state_indicator(state, app.frame_count);
@@ -413,9 +565,16 @@ fn draw_block_explorer(frame: &mut Frame, app: &AppState, area: Rect) {
         let inner = block.inner(chunks[0]);
         frame.render_widget(block, chunks[0]);
 
-        let input_box = Paragraph::new(format!("Height:  {}", if height_input.is_empty() { "[enter block height]" } else { height_input }))
-            .wrap(Wrap { trim: true })
-            .style(Style::default().fg(Color::Yellow));
+        let input_box = Paragraph::new(format!(
+            "Height:  {}",
+            if height_input.is_empty() {
+                "[enter block height]"
+            } else {
+                height_input
+            }
+        ))
+        .wrap(Wrap { trim: true })
+        .style(Style::default().fg(Color::Yellow));
 
         frame.render_widget(input_box, inner);
 
@@ -423,44 +582,77 @@ fn draw_block_explorer(frame: &mut Frame, app: &AppState, area: Rect) {
             OperationState::Idle => {
                 let empty = Paragraph::new("Enter block height and press Enter...")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::DarkGray)));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::DarkGray)),
+                    );
                 frame.render_widget(empty, chunks[1]);
             }
             OperationState::Loading => {
-                let loading = Paragraph::new(format!("{} Fetching block data...", get_spinner_frame(app.frame_count)))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Yellow)))
-                    .alignment(Alignment::Center)
-                    .style(Style::default().fg(Color::Yellow));
+                let loading = Paragraph::new(format!(
+                    "{} Fetching block data...",
+                    get_spinner_frame(app.frame_count)
+                ))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Yellow)),
+                )
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::Yellow));
                 frame.render_widget(loading, chunks[1]);
             }
             OperationState::Success(out) => {
                 let output = Paragraph::new(out.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Green))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Green)).title(" ✓ Block Info "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Green))
+                            .title(" ✓ Block Info "),
+                    );
                 frame.render_widget(output, chunks[1]);
             }
             OperationState::Error(err) => {
                 let error = Paragraph::new(err.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Red))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Red)).title(" ✗ Error "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Red))
+                            .title(" ✗ Error "),
+                    );
                 frame.render_widget(error, chunks[1]);
             }
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[2]);
     }
 }
 
 fn draw_fees(frame: &mut Frame, app: &AppState, area: Rect) {
-    if let TabState::Fees { target_blocks, state } = &app.tab_state {
+    if let TabState::Fees {
+        target_blocks,
+        state,
+    } = &app.tab_state
+    {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(7), Constraint::Min(3), Constraint::Length(2)])
+            .constraints([
+                Constraint::Length(7),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ])
             .split(area);
 
         let (status_text, status_color) = draw_state_indicator(state, app.frame_count);
@@ -487,34 +679,59 @@ fn draw_fees(frame: &mut Frame, app: &AppState, area: Rect) {
             OperationState::Idle => {
                 let empty = Paragraph::new("Adjust blocks with ↑↓, press Enter to estimate...")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::DarkGray)));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::DarkGray)),
+                    );
                 frame.render_widget(empty, chunks[1]);
             }
             OperationState::Loading => {
-                let loading = Paragraph::new(format!("{} Estimating fees...", get_spinner_frame(app.frame_count)))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Yellow)))
-                    .alignment(Alignment::Center)
-                    .style(Style::default().fg(Color::Yellow));
+                let loading = Paragraph::new(format!(
+                    "{} Estimating fees...",
+                    get_spinner_frame(app.frame_count)
+                ))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Yellow)),
+                )
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::Yellow));
                 frame.render_widget(loading, chunks[1]);
             }
             OperationState::Success(out) => {
                 let output = Paragraph::new(out.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Green))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Green)).title(" ✓ Fee Estimate "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Green))
+                            .title(" ✓ Fee Estimate "),
+                    );
                 frame.render_widget(output, chunks[1]);
             }
             OperationState::Error(err) => {
                 let error = Paragraph::new(err.as_str())
                     .wrap(Wrap { trim: true })
                     .style(Style::default().fg(Color::Red))
-                    .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::Red)).title(" ✗ Error "));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Red))
+                            .title(" ✗ Error "),
+                    );
                 frame.render_widget(error, chunks[1]);
             }
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[2]);
     }
@@ -547,9 +764,12 @@ fn draw_node_status(frame: &mut Frame, app: &AppState, area: Rect) {
                 frame.render_widget(empty, inner);
             }
             OperationState::Loading => {
-                let loading = Paragraph::new(format!("{} Connecting to Bitcoin Core...", get_spinner_frame(app.frame_count)))
-                    .style(Style::default().fg(Color::Yellow))
-                    .alignment(Alignment::Center);
+                let loading = Paragraph::new(format!(
+                    "{} Connecting to Bitcoin Core...",
+                    get_spinner_frame(app.frame_count)
+                ))
+                .style(Style::default().fg(Color::Yellow))
+                .alignment(Alignment::Center);
                 frame.render_widget(loading, inner);
             }
             OperationState::Success(out) => {
@@ -567,7 +787,11 @@ fn draw_node_status(frame: &mut Frame, app: &AppState, area: Rect) {
         }
 
         let status_bar = Paragraph::new(status_text)
-            .style(Style::default().fg(status_color).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(status_color)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(status_bar, chunks[1]);
     }

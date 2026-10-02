@@ -68,6 +68,19 @@ pub fn from_secret(secret: SecretKey, network: Network, key_type: KeyType) -> Ke
     }
 }
 
+/// A WIF private key. Its version byte says mainnet or test network.
+pub fn parse_private_key(s: &str) -> Result<bitcoin::PrivateKey, crate::error::CoreError> {
+    s.trim()
+        .parse::<bitcoin::PrivateKey>()
+        .map_err(|e| crate::error::CoreError::InvalidInput(format!("invalid WIF private key: {e}")))
+}
+
+pub fn parse_secret_key(s: &str) -> Result<bitcoin::secp256k1::SecretKey, crate::error::CoreError> {
+    s.parse::<bitcoin::PrivateKey>()
+        .map(|pk| pk.inner)
+        .map_err(|e| crate::error::CoreError::InvalidInput(format!("invalid key: {}", e)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,7 +104,10 @@ mod tests {
     #[test]
     fn mainnet_wif_matches_the_known_encoding_of_secret_one() {
         let info = from_secret(secret_one(), Network::Mainnet, KeyType::Ecdsa);
-        assert_eq!(info.private_key_wif.as_str(), "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn");
+        assert_eq!(
+            info.private_key_wif.as_str(),
+            "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+        );
     }
 
     #[test]
@@ -117,17 +133,4 @@ mod tests {
         assert_ne!(*a.private_key_hex, *b.private_key_hex);
         assert!(a.private_key_wif.starts_with('c'));
     }
-}
-
-/// A WIF private key. Its version byte says mainnet or test network.
-pub fn parse_private_key(s: &str) -> Result<bitcoin::PrivateKey, crate::error::CoreError> {
-    s.trim()
-        .parse::<bitcoin::PrivateKey>()
-        .map_err(|e| crate::error::CoreError::InvalidInput(format!("invalid WIF private key: {e}")))
-}
-
-pub fn parse_secret_key(s: &str) -> Result<bitcoin::secp256k1::SecretKey, crate::error::CoreError> {
-    s.parse::<bitcoin::PrivateKey>()
-        .map(|pk| pk.inner)
-        .map_err(|e| crate::error::CoreError::InvalidInput(format!("invalid key: {}", e)))
 }

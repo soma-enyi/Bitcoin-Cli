@@ -1,6 +1,5 @@
-
 use crate::app::error::AppError;
-use crate::app::{validate, Context, FeeSource};
+use crate::app::{Context, FeeSource, validate};
 use crate::output::Render;
 
 #[derive(Debug, serde::Serialize)]
@@ -39,7 +38,15 @@ impl Render for BlockInfoOutput {
     fn render_human(&self) -> String {
         format!(
             "Hash: {}\nHeight: {}\nTime: {}\nTransactions: {}\nSize: {} bytes\nVersion: {}\nMerkle Root: {}\nBits: {}\nDifficulty: {:.2e}",
-            self.hash, self.height, self.time, self.tx_count, self.size, self.version, self.merkle_root, self.bits, self.difficulty
+            self.hash,
+            self.height,
+            self.time,
+            self.tx_count,
+            self.size,
+            self.version,
+            self.merkle_root,
+            self.bits,
+            self.difficulty
         )
     }
 }
@@ -59,11 +66,7 @@ pub struct FeeEstimateOutput {
 
 impl Render for FeeEstimateOutput {
     fn render_human(&self) -> String {
-        let fallback_note = if self.is_fallback {
-            " (fallback)"
-        } else {
-            ""
-        };
+        let fallback_note = if self.is_fallback { " (fallback)" } else { "" };
         let line = format!(
             "{:.2} sat/vB (mode: {}, target: {} blocks){}\nsource: {}",
             self.sat_vb, self.mode, self.target_blocks, fallback_note, self.source
@@ -86,7 +89,10 @@ fn expected_chain(network: btc_core::Network) -> &'static str {
 /// Refuses to continue when the node is on a different chain than the selected network,
 /// e.g. `BTC_NETWORK=regtest` while the node settings still point at a mainnet gateway.
 pub fn ensure_chain(ctx: &Context) -> Result<(), AppError> {
-    let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+    let backend = ctx
+        .backend
+        .as_ref()
+        .ok_or(AppError::NotImplemented("node backend"))?;
     check_chain(ctx, &backend.chain()?)
 }
 
@@ -105,7 +111,10 @@ fn check_chain(ctx: &Context, chain: &str) -> Result<(), AppError> {
 }
 
 pub fn status(ctx: &Context) -> Result<NodeStatusOutput, AppError> {
-    let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+    let backend = ctx
+        .backend
+        .as_ref()
+        .ok_or(AppError::NotImplemented("node backend"))?;
     let status = backend.node_status()?;
     check_chain(ctx, &status.chain)?;
 
@@ -126,7 +135,10 @@ pub fn block_info(ctx: &Context, height_or_hash: &str) -> Result<BlockInfoOutput
     }
 
     ensure_chain(ctx)?;
-    let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+    let backend = ctx
+        .backend
+        .as_ref()
+        .ok_or(AppError::NotImplemented("node backend"))?;
     let block = backend.block_info(height_or_hash)?;
 
     Ok(BlockInfoOutput {
@@ -144,7 +156,12 @@ pub fn block_info(ctx: &Context, height_or_hash: &str) -> Result<BlockInfoOutput
 }
 
 fn host_of(url: &str) -> &str {
-    url.split("://").nth(1).unwrap_or(url).split('/').next().unwrap_or(url)
+    url.split("://")
+        .nth(1)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or(url)
 }
 
 pub fn fee_estimate(
@@ -157,7 +174,10 @@ pub fn fee_estimate(
     validate::fee_target(target)?;
     let mode = mode.unwrap_or("economical");
 
-    let backend = ctx.backend.as_ref().ok_or(AppError::NotImplemented("node backend"))?;
+    let backend = ctx
+        .backend
+        .as_ref()
+        .ok_or(AppError::NotImplemented("node backend"))?;
 
     // A wrong-chain node is always an error; an unreachable one may fall back to --fallback-rate.
     match ensure_chain(ctx) {
@@ -166,14 +186,15 @@ pub fn fee_estimate(
         Ok(()) => {}
     }
 
-    let output = |sat_vb: f64, is_fallback: bool, source: String, note: Option<String>| FeeEstimateOutput {
-        sat_vb,
-        mode: mode.to_string(),
-        target_blocks: target,
-        is_fallback,
-        source,
-        note,
-    };
+    let output =
+        |sat_vb: f64, is_fallback: bool, source: String, note: Option<String>| FeeEstimateOutput {
+            sat_vb,
+            mode: mode.to_string(),
+            target_blocks: target,
+            is_fallback,
+            source,
+            note,
+        };
 
     let node_error = match backend.fee_estimate(target, mode) {
         Ok(fee) => {
@@ -197,9 +218,10 @@ pub fn fee_estimate(
     let mut alternative_failed = None;
     if ctx.network.is_mainnet() {
         match ctx.fees.source {
-            FeeSource::Public => match btc_node::fee_source::fetch_public(&ctx.fees.api_url, target) {
-                Ok(rate) => {
-                    return Ok(output(
+            FeeSource::Public => {
+                match btc_node::fee_source::fetch_public(&ctx.fees.api_url, target) {
+                    Ok(rate) => {
+                        return Ok(output(
                         rate,
                         false,
                         format!("public fee service ({})", host_of(&ctx.fees.api_url)),
@@ -209,13 +231,20 @@ pub fn fee_estimate(
                                 .to_owned(),
                         ),
                     ));
+                    }
+                    Err(e) => {
+                        alternative_failed = Some(format!("the public fee service failed: {e}"))
+                    }
                 }
-                Err(e) => alternative_failed = Some(format!("the public fee service failed: {e}")),
-            },
+            }
             FeeSource::Blocks => {
-                let estimate = backend.recent_fee_rates(ctx.fees.blocks).map_err(AppError::Node).and_then(|samples| {
-                    btc_node::fee_source::estimate_from_samples(&samples, target).map_err(AppError::Node)
-                });
+                let estimate = backend
+                    .recent_fee_rates(ctx.fees.blocks)
+                    .map_err(AppError::Node)
+                    .and_then(|samples| {
+                        btc_node::fee_source::estimate_from_samples(&samples, target)
+                            .map_err(AppError::Node)
+                    });
                 match estimate {
                     Ok(rate) => {
                         return Ok(output(
@@ -230,7 +259,10 @@ pub fn fee_estimate(
                             ),
                         ));
                     }
-                    Err(e) => alternative_failed = Some(format!("estimating from recent blocks failed: {e}")),
+                    Err(e) => {
+                        alternative_failed =
+                            Some(format!("estimating from recent blocks failed: {e}"))
+                    }
                 }
             }
             FeeSource::Node => {}
@@ -254,7 +286,12 @@ pub fn fee_estimate(
     if let Some(why) = alternative_failed {
         note.push_str(&format!("\n\nNote: {why}."));
     }
-    Ok(output(floor, false, "the mempool minimum".to_owned(), Some(note)))
+    Ok(output(
+        floor,
+        false,
+        "the mempool minimum".to_owned(),
+        Some(note),
+    ))
 }
 
 #[cfg(test)]
@@ -262,7 +299,9 @@ mod tests {
     use std::sync::Arc;
 
     use btc_core::Network;
-    use btc_node::{BlockInfo, FeeEstimate, NodeBackend, NodeError, NodeStatus, RpcConfig, RpcOptions};
+    use btc_node::{
+        BlockInfo, FeeEstimate, NodeBackend, NodeError, NodeStatus, RpcConfig, RpcOptions,
+    };
 
     use super::*;
     use crate::output::{OutputMode, Render};
@@ -274,7 +313,13 @@ mod tests {
 
     impl NodeBackend for NoEstimates {
         fn node_status(&self) -> btc_node::backend::Result<NodeStatus> {
-            Ok(NodeStatus { chain: "regtest".into(), blocks: 1, headers: 1, sync_percentage: 100.0, connections: 1 })
+            Ok(NodeStatus {
+                chain: "regtest".into(),
+                blocks: 1,
+                headers: 1,
+                sync_percentage: 100.0,
+                connections: 1,
+            })
         }
         fn block_info(&self, _: &str) -> btc_node::backend::Result<BlockInfo> {
             Err(NodeError::Rpc("unused".into()))
@@ -283,7 +328,8 @@ mod tests {
             Err(NodeError::Rpc("estimatesmartfee is not permitted".into()))
         }
         fn mempool_floor_sat_vb(&self) -> btc_node::backend::Result<f64> {
-            self.floor.ok_or_else(|| NodeError::Rpc("no mempool".into()))
+            self.floor
+                .ok_or_else(|| NodeError::Rpc("no mempool".into()))
         }
         fn send_raw_transaction(&self, _: &str) -> btc_node::backend::Result<String> {
             Err(NodeError::Rpc("unused".into()))
@@ -306,7 +352,10 @@ mod tests {
         assert_eq!(out.sat_vb, 1.0);
         assert!(!out.is_fallback);
         let text = out.render_human();
-        assert!(text.contains("MINIMUM") && text.contains("--fee-rate"), "{text}");
+        assert!(
+            text.contains("MINIMUM") && text.contains("--fee-rate"),
+            "{text}"
+        );
     }
 
     #[test]
