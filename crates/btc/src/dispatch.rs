@@ -173,18 +173,25 @@ pub fn run(cli: Cli, ctx: &Context) -> Result<(), AppError> {
             target,
             mode,
             fallback_rate,
+            block,
+            blocks,
         }) => {
             let mode_str = match mode {
                 FeeMode::Economical => "economical",
                 FeeMode::Conservative => "conservative",
             };
+            if block.is_some() || blocks.is_some() {
+                return emit(
+                    &app::node::fee_estimate_from_blocks(ctx, block, blocks, Some(target))?,
+                    ctx.output,
+                );
+            }
             emit(
                 &app::node::fee_estimate(ctx, Some(target), Some(mode_str), fallback_rate)?,
                 ctx.output,
             )
         }
 
-        // Stubs: each is replaced as its phase is implemented.
         Command::Tx(TxCmd::Create {
             inputs,
             outputs,

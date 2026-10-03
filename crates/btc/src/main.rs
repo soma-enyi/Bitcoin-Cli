@@ -13,7 +13,16 @@ use crate::cli::Cli;
 
 fn main() -> ExitCode {
     // Missing .env is fine; real environment variables still win over its values.
-    let _ = dotenvy::dotenv();
+    if let Err(err) = dotenvy::dotenv() {
+        if !err.not_found() {
+            // The loader stops at the first line it cannot read, so every setting below it is
+            // silently missing. Say so, but never print the line: it may be a secret.
+            eprintln!(
+                "warning: .env has a line that is not KEY=VALUE (or a comment starting with #), \
+                 so the settings after it were NOT loaded. Fix or remove that line."
+            );
+        }
+    }
     envsel::apply(&std::env::args().collect::<Vec<_>>());
 
     let cli = match Cli::try_parse() {

@@ -13,8 +13,10 @@ pub mod mnemonic;
 pub mod multisig;
 pub mod node;
 pub mod psbt;
+pub mod send;
 pub mod tx;
 pub mod validate;
+pub mod wallets;
 
 pub use context::{Context, FeeConfig, FeeSource};
 pub use error::AppError;

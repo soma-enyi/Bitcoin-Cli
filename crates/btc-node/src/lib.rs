@@ -9,7 +9,8 @@ pub mod error;
 pub mod fee_source;
 
 pub use backend::{
-    BlockInfo, CoreRpcBackend, FeeEstimate, FetchedTx, MockBackend, NodeBackend, NodeStatus,
+    BlockFeeStats, BlockInfo, CoreRpcBackend, FeeEstimate, FetchedTx, MockBackend, NodeBackend,
+    NodeStatus, Utxo,
 };
 pub use config::{RpcAuth, RpcConfig, RpcOptions};
 pub use error::NodeError;

@@ -40,6 +40,7 @@ comfy-table = "7"
 owo-colors = "4"
 
 # TUI
+arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
 ratatui = "0.29"
 crossterm = "0.28"
 

@@ -3,6 +3,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::backend::BlockFeeStats;
 use crate::error::NodeError;
 
 /// An Esplora-compatible `fee-estimates` endpoint: confirmation target in blocks -> sat/vB.
@@ -117,6 +118,43 @@ pub fn weighted_percentile(samples: &[(f64, u64)], percent: f64) -> Option<f64> 
     sorted.last().map(|(rate, _)| *rate)
 }
 
+/// An estimate from one block's fee statistics. A short target beats the 25th percentile of what
+/// the block paid, a medium one the 10th, a long one only the cheapest transaction it confirmed.
+/// Never below the relay minimum.
+pub fn estimate_from_block_stats(stats: &BlockFeeStats, target: u16) -> f64 {
+    let rate = match target {
+        0..=2 => stats.percentiles[1],
+        3..=24 => stats.percentiles[0],
+        _ => stats.min_sat_vb.min(stats.percentiles[0]),
+    };
+    rate.max(RELAY_MINIMUM)
+}
+
+/// How many blocks to read for `target`: a short target follows the latest few blocks, a long
+/// one smooths over a day.
+pub fn default_window(target: u16) -> u16 {
+    match target {
+        0..=2 => 3,
+        3..=6 => 6,
+        7..=24 => 24,
+        _ => 144,
+    }
+}
+
+/// The middle value, so one odd block (say an empty one) cannot drag the estimate.
+pub fn median(values: &mut [f64]) -> Option<f64> {
+    if values.is_empty() {
+        return None;
+    }
+    values.sort_by(|a, b| a.total_cmp(b));
+    let mid = values.len() / 2;
+    Some(if values.len() % 2 == 1 {
+        values[mid]
+    } else {
+        (values[mid - 1] + values[mid]) / 2.0
+    })
+}
+
 /// An estimate from `(sat/vB, vsize)` samples of recently confirmed transactions.
 pub fn estimate_from_samples(samples: &[(f64, u64)], target: u16) -> Result<f64, NodeError> {
     weighted_percentile(samples, percentile_for_target(target))
@@ -173,6 +211,33 @@ mod tests {
         assert_eq!(weighted_percentile(&samples, 5.0), Some(1.0));
         assert_eq!(weighted_percentile(&samples, 50.0), Some(10.0));
         assert_eq!(weighted_percentile(&[], 50.0), None);
+    }
+
+    #[test]
+    fn block_stats_estimate_follows_the_target_and_respects_the_relay_minimum() {
+        let stats = BlockFeeStats {
+            height: 1,
+            hash: String::new(),
+            tx_count: 10,
+            min_sat_vb: 0.5,
+            avg_sat_vb: 8.0,
+            max_sat_vb: 90.0,
+            percentiles: [3.0, 5.0, 7.0, 12.0, 20.0],
+        };
+        assert_eq!(estimate_from_block_stats(&stats, 1), 5.0);
+        assert_eq!(estimate_from_block_stats(&stats, 6), 3.0);
+        // The cheapest transaction paid 0.5, which a node would not relay: raised to 1.
+        assert_eq!(estimate_from_block_stats(&stats, 100), 1.0);
+    }
+
+    #[test]
+    fn the_window_grows_with_the_target_and_the_median_ignores_one_odd_block() {
+        assert!(default_window(1) < default_window(6));
+        assert!(default_window(6) < default_window(24));
+        assert!(default_window(24) < default_window(1008));
+        assert_eq!(median(&mut [9.0, 1.0, 5.0]), Some(5.0));
+        assert_eq!(median(&mut [1.0, 1.0, 40.0, 3.0]), Some(2.0));
+        assert_eq!(median(&mut []), None);
     }
 
     #[test]

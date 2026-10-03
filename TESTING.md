@@ -189,6 +189,11 @@ cargo run --quiet --bin btc -- fee estimate --target-blocks 6
 
 # Fee in BTC/vB
 # Requires: Bitcoin Core running
+
+# Estimate from what recent blocks paid (median of per-block estimates)
+cargo run --quiet --bin btc -- fee estimate --target 6 --block 850000 --blocks 6
+cargo run --quiet --bin btc -- fee estimate --blocks 24     # window ends at the tip
+# --block/--blocks cannot be combined with --fallback-rate
 ```
 
 ### 10. Check Node Status (Requires Bitcoin Core)
@@ -255,8 +260,11 @@ cargo run --quiet --bin btc -- tui
 | `Backspace` | Delete character |
 | `Enter` | Execute operation |
 | `↑` `↓` | Adjust values (Fees tab) |
-| `q` | Quit TUI |
-| `Ctrl+C` | Force quit |
+| `Tab` | Switch field (Fees and Send tabs) |
+| `w` / `Ctrl+W` | Open the wallet dialog (`Ctrl+W` works inside text fields) |
+| `Ctrl+U` | Clear the current field |
+| `q` / `Esc` | Save the session and quit (`Esc` closes the wallet dialog first) |
+| `Ctrl+C` | Save and force quit |
 
 ### Test Each Tab
 
@@ -286,9 +294,15 @@ cargo run --quiet --bin btc -- tui
 
 # Tab 6: Fees (→)
 # - Use ↑↓ to adjust blocks
+# - Optionally type a Last block and Blocks read (Tab switches field)
 # - Press Enter to estimate
 
-# Tab 7: Node Status (→)
+# Tab 7: Send (→)
+# - Press w to create or pick a wallet first
+# - Fill address, amount, fee; Enter to build, Enter to continue
+# - Type the WIF or recovery phrase, Enter to sign, Enter to broadcast
+
+# Tab 8: Node Status (→)
 # - Press Enter to check
 # - Shows node connectivity
 ```
@@ -331,6 +345,55 @@ cargo fmt --check
 # Auto-format code
 cargo fmt
 ```
+
+### Tests added for fees, wallets and the Send flow
+
+All run offline against `MockBackend`; none needs Bitcoin Core.
+
+| Area | What is checked |
+|------|-----------------|
+| Fee window (`btc-node` `fee_source`) | Percentile per target, relay-minimum floor, window size grows with the target, median ignores one odd block |
+| `fee estimate` (`app::node`) | A block window estimates from those blocks; a window past the tip, or 0 blocks, is refused |
+| Wallet store (`app::wallets`) | Add / select / remove / reload from disk; bad names, duplicates, wrong-network and legacy addresses rejected |
+| Send (`app::send`) | The payment is built and the wallet key can sign it; more coins are used when one is not enough; a clear error when all are not; bad address, fee and amount rejected |
+| TUI Send flow (`tuiapp::event`) | compose → review → key → confirm → done; the key is wiped once used; a wallet is required; mainnet needs a typed `yes`; switching wallet resets a half-built payment |
+| Wallet dialog | `w` opens it and `q` closes it instead of quitting; add and switch wallets; a bad address keeps it open with an error |
+| Recovery phrase (`wallet_modal`, fake clipboard and clock) | Defaults to 24 words, ↑↓ cycles 12-24; `c` copies; at 59 s nothing is cleared, at 61 s the screen is wiped and the clipboard cleared; the clipboard still clears after the dialog closes, on quit and on drop; a missing clipboard is reported; Enter/Esc/double Enter never close the phrase before `saved`; the phrase never reaches `wallets.json` or `session.json` |
+| Stale results and key routing (`tuiapp::event`) | A job started before an edit, discard or wallet switch cannot overwrite the new payment; Esc backs out of the key step; a typed key is wiped when leaving the tab |
+| Real transaction size (`btc-core` `tx::build`) | 1-in/2-out P2WPKH is 141 vB and 1-in/1-out 110 vB; taproot inputs are cheaper; absurd amounts are refused without overflow |
+| Coin maturity (`app::send`) | Coinbase coins under 100 confirmations are skipped; exactly 100 is spendable |
+| Mining (`app::node`, `tuiapp::event`) | A wallet without coins gets 101 blocks, one with coins gets 1; other networks refuse; `m` is a letter in text fields and Ctrl+O mines; a second press while mining is refused; the footer message expires |
+| Real node (`#[ignore]`, needs `BTC_REGTEST_*`) | `getblockstats` and the full-block fallback agree; a wallet is funded, scanned, paid from with its phrase and gets change back |
+| Send form (`tuiapp::send`) | Fields accept only what they can hold; the key is never printed (`Debug`) or serialized |
+| Session (`tuiapp::session`) | Round trip restores the tab and fields; no key, xprv or PSBT reaches the file; a corrupt file is a fresh start |
+| Drawing (`tuiapp::ui`) | Send tab, wallet dialog and Fees fields draw at 100x30 and at a tiny 20x5 terminal without panicking |
+
+Run just these with e.g. `cargo test -p btc send`, `cargo test -p btc wallets`, `cargo test -p btc session`,
+`cargo test -p btc-node fee_source`.
+
+### Manual regtest walkthrough: sending from the TUI
+
+```bash
+# 1. Start regtest bitcoind (e.g. bitcoind -regtest -daemon) and open the TUI
+BTC_NETWORK=regtest cargo run --quiet --bin btc -- tui
+
+# 2. Press w, then n: name the wallet (e.g. alice). A 24-word recovery phrase is shown once:
+#    press c to copy it, write it down, then type saved + Enter. The wallet is saved as a name + address only.
+#    The footer now shows "Wallet: alice".
+
+# 3. Fund that address (copy it from the Send tab) and confirm it:
+bitcoin-cli -regtest -rpcwallet=<w> sendtoaddress <alice address> 1
+bitcoin-cli -regtest generatetoaddress 101 <any address>
+
+# 4. In the TUI go to Send (→). Fill: Pay to <regtest address>, Amount 25000, Fee 2.
+#    Enter -> review the summary; Enter -> type the phrase (or WIF); Enter -> signed; Enter -> broadcast.
+#    The result shows the txid. Mine a block and check with: bitcoin-cli -regtest gettransaction <txid>
+
+# 5. Press q. Relaunch the TUI: it opens on the same tab with your address and amount restored,
+#    but no key or phrase.
+```
+Also check: after pressing `c` the clipboard holds the phrase, and about 60 seconds later both the screen and the
+clipboard are empty.
 
 ### Compilation Warnings
 
@@ -603,3 +666,6 @@ cargo build --release --bin btc
 **Project:** Bitcoin CLI Capstone  
 **Language:** Rust  
 **Status:** Production Ready ✅
+
+ db000eef389d259d8a4354f61eee02c85ea98deafc85c75269d932f805c994b0 
+ 

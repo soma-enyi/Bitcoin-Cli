@@ -136,6 +136,14 @@ pub fn create_psbt(
 
     let total_input_sats: u64 = inputs.iter().filter_map(|i| i.amount_sats).sum();
 
+    // 21 million BTC is the most that can exist; anything above is a typo, and it keeps the
+    // sums below from overflowing.
+    const MAX_SATS: u64 = 21_000_000 * 100_000_000;
+    if outputs.iter().any(|o| o.amount_sats > MAX_SATS) || total_input_sats > MAX_SATS {
+        return Err(CoreError::InvalidInput(
+            "an amount is larger than the 21 million BTC that can exist".into(),
+        ));
+    }
     let total_output_sats: u64 = outputs.iter().map(|o| o.amount_sats).sum();
 
     if total_input_sats == 0 {
@@ -154,11 +162,17 @@ pub fn create_psbt(
         }
     }
 
-    let num_outputs = outputs.len() + if change_address.is_some() { 1 } else { 0 };
-    let estimated_vsize = estimate_vsize(inputs.len(), num_outputs);
+    let mut output_script_lens: Vec<usize> = outputs
+        .iter()
+        .map(|o| o.address.script_pubkey().len())
+        .collect();
+    if let Some(change) = &change_address {
+        output_script_lens.push(change.script_pubkey().len());
+    }
+    let estimated_vsize = estimate_vsize(&inputs, &output_script_lens);
     let estimated_fee = ((estimated_vsize as f64) * fee_rate).ceil() as u64;
 
-    if total_input_sats < total_output_sats + estimated_fee {
+    if total_input_sats < total_output_sats.saturating_add(estimated_fee) {
         return Err(CoreError::InvalidInput(format!(
             "insufficient funds: {} sats input < {} sats output + {} sats fee",
             total_input_sats, total_output_sats, estimated_fee
@@ -224,14 +238,26 @@ pub fn create_psbt(
     Ok(psbt)
 }
 
-fn estimate_vsize(num_inputs: usize, num_outputs: usize) -> usize {
-    let base_size = 10;
-    let input_size = 41 * num_inputs;
-    let output_size = 34 * num_outputs;
-    let signature_size = 71 * num_inputs;
-
-    let total_weight = (base_size + input_size + output_size) * 4 + signature_size;
-    total_weight.div_ceil(4)
+/// The size the signed transaction will have, so the fee pays the rate asked for.
+///
+/// Per input: 41 bytes of outpoint, empty script and sequence, plus the witness that
+/// `tx sign` produces: 108 weight units for P2WPKH (signature up to 72 bytes, 33-byte key) or
+/// 66 for a taproot key spend. Per output: 8 value bytes, a length byte and the script.
+/// A transaction with a witness also carries a 2-byte marker and flag.
+fn estimate_vsize(inputs: &[TxInput], output_script_lens: &[usize]) -> usize {
+    let overhead_wu = (4 + 1 + 1 + 4) * 4 + 2;
+    let inputs_wu: usize = inputs
+        .iter()
+        .map(|input| {
+            let witness_wu = match &input.script_pubkey {
+                Some(script) if script.is_p2tr() => 66,
+                _ => 108,
+            };
+            41 * 4 + witness_wu
+        })
+        .sum();
+    let outputs_wu: usize = output_script_lens.iter().map(|len| (8 + 1 + len) * 4).sum();
+    (overhead_wu + inputs_wu + outputs_wu).div_ceil(4)
 }
 
 #[cfg(test)]
@@ -250,6 +276,59 @@ mod tests {
     }
 
     use super::*;
+    use bitcoin::hashes::Hash;
+
+    #[test]
+    fn the_size_estimate_matches_real_transactions() {
+        let p2wpkh = ScriptBuf::new_p2wpkh(&bitcoin::WPubkeyHash::from_byte_array([1; 20]));
+        let input = |script: &ScriptBuf| TxInput {
+            txid: Txid::from_byte_array([1; 32]),
+            vout: 0,
+            amount_sats: Some(1),
+            script_pubkey: Some(script.clone()),
+        };
+        // The well-known size of a 1-input, 2-output P2WPKH payment is 141 vB.
+        assert_eq!(estimate_vsize(&[input(&p2wpkh)], &[22, 22]), 141);
+        // 1 in, 1 out: 110 vB.
+        assert_eq!(estimate_vsize(&[input(&p2wpkh)], &[22]), 110);
+        let p2tr =
+            ScriptBuf::new_p2tr_tweaked(bitcoin::key::TweakedPublicKey::dangerous_assume_tweaked(
+                bitcoin::XOnlyPublicKey::from_slice(&[2; 32]).unwrap_or_else(|_| {
+                    bitcoin::secp256k1::Secp256k1::new()
+                        .generate_keypair(&mut bitcoin::secp256k1::rand::thread_rng())
+                        .1
+                        .x_only_public_key()
+                        .0
+                }),
+            ));
+        // A taproot key spend is cheaper than P2WPKH, and a taproot output costs more.
+        assert!(estimate_vsize(&[input(&p2tr)], &[22]) < 110);
+        assert!(estimate_vsize(&[input(&p2wpkh)], &[34]) > 110);
+    }
+
+    #[test]
+    fn huge_amounts_are_refused_instead_of_overflowing() {
+        let address = parse_address(
+            "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080",
+            Network::Regtest,
+        )
+        .unwrap();
+        let zero = "0000000000000000000000000000000000000000000000000000000000000000";
+        let input = TxInput::parse(&format!("{zero}:0:1000000"), Network::Regtest).unwrap();
+        let output = |sats| TxOutput {
+            address: address.clone(),
+            amount_sats: sats,
+        };
+        for sats in [u64::MAX, u64::MAX - 100, 21_000_001 * 100_000_000] {
+            let err = create_psbt(
+                vec![input.clone()],
+                vec![output(sats)],
+                Some(address.clone()),
+                1.0,
+            );
+            assert!(err.is_err(), "{sats} was accepted");
+        }
+    }
 
     #[test]
     fn test_input_parsing() {
@@ -297,11 +376,5 @@ mod tests {
         let utxo = psbt.inputs[0].witness_utxo.as_ref().unwrap();
         assert_eq!(utxo.value.to_sat(), 100_000);
         assert!(utxo.script_pubkey.is_p2wpkh());
-    }
-
-    #[test]
-    fn test_vsize_estimation() {
-        assert_eq!(estimate_vsize(1, 2), 137);
-        assert_eq!(estimate_vsize(2, 1), 162);
     }
 }

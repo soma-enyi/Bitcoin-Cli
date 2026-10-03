@@ -93,6 +93,16 @@ On mainnet, when the node cannot estimate (a restricted gateway), set `BTC_MAINN
 (a public fee service) or `blocks` (computed from recent blocks through your node, about 10 MB each); otherwise
 you get the labelled mempool minimum. Every result says where its number came from.
 
+To estimate from what blocks actually paid, instead of the node's estimator:
+```bash
+btc fee estimate --target 6 --block 850000 --blocks 6   # the 6 blocks ending at 850000
+btc fee estimate --blocks 24                            # the last 24 blocks (--block defaults to the tip)
+```
+`--block` is the last block of the window and `--blocks` how many to read; if only one is given the other defaults
+(tip, or a count chosen by `--target`: 1-2 → 3 blocks, 3-6 → 6, 7-24 → 24, 25+ → 144). Each block gives its own
+estimate and the result is their median, so one odd block cannot skew it. Blocks are read with `getblockstats`; a node
+without it is read block by block instead (heavier). Neither flag can be combined with `--fallback-rate`.
+
 ### Node connection and choosing a network
 Copy `.env.example` to `.env` (loaded automatically; real environment variables win). Pick the network with
 `BTC_NETWORK` or `-n`; node settings are per network (`BTC_MAINNET_RPC_URL`, `BTC_MAINNET_RPC_API_KEY`,
@@ -103,9 +113,47 @@ Node commands exit 2 with a hint if the node is unreachable.
 ### TUI (Interactive)
 ```bash
 btc tui
-# Navigate with ← → arrow keys, q to quit
-# Tabs: Keys, Derive, Addresses, Tx Decoder, Blocks, Fees, Node
+# Navigate with ← → arrow keys, q to quit (your place is saved)
+# Tabs: Keys, Derive, Addresses, Tx Decoder, Blocks, Fees, Send, Node
 ```
+
+**Fees tab**: ↑↓ sets the target. Optionally fill *Last block* and *Blocks read* (Tab switches between the two) to
+estimate from blocks, as `--block` / `--blocks` do; leave both blank to use the node's estimator.
+
+**Wallets**: press `w` (or Ctrl+W inside a text field) to open the wallet dialog.
+
+| Key | Action |
+|-----|--------|
+| `↑` `↓` | Pick a wallet |
+| `Enter` | Use the picked wallet |
+| `n` | Create a new wallet with a freshly generated recovery phrase (24 words; `↑` `↓` chooses 12-24) |
+| `a` | Add a watch-only wallet from an existing address |
+| `d` | Delete the picked wallet |
+| `Esc` | Close |
+
+A new wallet's recovery phrase is shown once. Press `c` to copy it to the clipboard; the screen and the clipboard are
+both cleared after 60 seconds, so write it down first. Enter and Esc do not close the phrase view by accident: type
+`saved` and press Enter once you have written the words down. Clipboard managers may keep their own copy, so turn
+their history off or avoid copying at all. A wallet is saved as a name and an address only, in
+`$BTC_HOME` or the platform config directory under `<network>/wallets.json`. **The recovery phrase and keys are never
+written to disk.**
+
+**Mining (regtest only)**: press `m` (or Ctrl+O inside a text field) to mine blocks to the current wallet. A wallet with
+no spendable coin gets 101 blocks, so the first reward is spendable at once; after that each press mines 1 block, which
+confirms waiting payments. It runs in the background and the result appears in the footer. Other networks refuse. To
+test a payment: create two wallets (`w`, `n`), press `m` on the first, then send to the second one's address.
+
+**Send tab** pays from the current wallet: compose (address, amount in sats, optional fee rate) → review → enter the key
+→ confirm → done. Coins are found with the node's `scantxoutset`, so the node needs no wallet (on mainnet the scan can
+take a minute). Coins are picked largest first and the change returns to the wallet. The key stage takes a WIF or the
+wallet's recovery phrase; it is used only to sign and is wiped straight after, and Esc backs out of that step instead of
+quitting. On mainnet you must type `yes` before anything is broadcast. Switching wallet discards a half-built payment.
+Coins you mined straight to the address (coinbase) are not offered until they are 100 blocks deep, because the node
+would refuse them. The fee covers the real size of the transaction, so the rate you ask for is the rate you pay.
+
+**Saved on quit**: `q` (or Esc / Ctrl+C) writes the tab and the non-secret fields (block height, fee fields, the Send
+form's address, amount and fee) to `session.json` beside `wallets.json`, and they come back next launch. Keys, extended
+keys, PSBTs and recovery phrases are never saved.
 
 ## Global Flags
 
@@ -174,17 +222,18 @@ btc-cli/
 
 ## Roadmap (Post-MVP)
 
-- [x] Full TUI with 7 tabs running the real services (RPC runs on a background thread)
+- [x] Full TUI with 8 tabs running the real services (RPC runs on a background thread)
 - [x] Real Bitcoin Core RPC backend; `.env` loaded automatically
 - [x] PSBT `analyze` / `combine`; multisig `create` / `analyze` (addresses verified against `bitcoin-cli createmultisig`)
 - [x] `tx create` / `tx sign` / `tx broadcast` (P2WPKH + taproot key-path), verified against Bitcoin Core
+- [x] TUI Send tab, named wallets (name + address only), fee estimates from a window of blocks, session save on quit
 - [ ] Legacy P2PKH / P2SH inputs, multi-key PSBT signing and finalize
 - [ ] Colored CLI output (comfy-table + owo-colors)
 - [ ] Hardware wallet integration
 
 ## Security
 
-- **Secrets**: Private keys, mnemonics zeroized on drop (Zeroizing<>)
+- **Secrets**: Private keys, mnemonics zeroized on drop (Zeroizing<>); the TUI saves only wallet names, addresses and non-secret form fields, never a key, phrase or PSBT
 - **Offline mode**: Core logic has zero network code
 - **Regtest by default**: mainnet is opt-in via `--network mainnet` / `BTC_NETWORK`; keys, addresses and transaction outputs are checked against the selected network
 - **RPC auth**: Supports cookie and user/pass; flags never logged
